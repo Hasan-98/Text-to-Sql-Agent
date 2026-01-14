@@ -1,3 +1,11 @@
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const SESSION_FILE = path.resolve(__dirname, '../../session_memory.json');
+
 export class ConversationContext {
     constructor() {
         this.history = [];
@@ -10,6 +18,9 @@ export class ConversationContext {
         this.lastQuery = null;
         this.lastResults = null;
         this.lastSQL = null;
+
+        // Load existing session if it exists
+        this.load();
     }
 
     addInteraction(userQuery, analyzedQuery, sqlQuery, results, finalAnswer) {
@@ -31,6 +42,9 @@ export class ConversationContext {
         if (this.history.length > 5) {
             this.history.shift();
         }
+
+        // Save after each interaction
+        this.save();
     }
 
     updateEntities(analyzedQuery, results) {
@@ -62,25 +76,25 @@ export class ConversationContext {
 
         let context = `
 === CONVERSATION HISTORY ===
-Number of previous queries: \${this.history.length}
+Number of previous queries: ${this.history.length}
 
 STORES CURRENTLY BEING DISCUSSED:
-\${this.entities.recentStores.length > 0
-                ? this.entities.recentStores.slice(0, 10).map(s => \`- \${s.name}\`).join('\\n')
+${this.entities.recentStores.length > 0
+                ? this.entities.recentStores.slice(0, 10).map(s => `- ${s.name}`).join('\n')
                 : 'None specified'}
 
 METRICS DISCUSSED SO FAR:
-\${this.entities.discussedMetrics.length > 0
+${this.entities.discussedMetrics.length > 0
                 ? this.entities.discussedMetrics.join(', ')
                 : 'None'}
 
-LAST QUERY: "\${this.lastQuery}"
+LAST QUERY: "${this.lastQuery}"
 
 LAST SQL USED:
-\${this.lastSQL || 'None'}
+${this.lastSQL || 'None'}
 
 LAST RESULTS (first 3 rows):
-\${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'None'}
+${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'None'}
 `;
         return context;
     }
@@ -91,6 +105,41 @@ LAST RESULTS (first 3 rows):
 
     getRecentStoreNames() {
         return this.entities.recentStores.map(s => s.name);
+    }
+
+    save() {
+        try {
+            const data = {
+                history: this.history,
+                entities: this.entities,
+                lastQuery: this.lastQuery,
+                lastResults: this.lastResults,
+                lastSQL: this.lastSQL
+            };
+            fs.writeFileSync(SESSION_FILE, JSON.stringify(data, null, 2), 'utf8');
+        } catch (err) {
+            console.error('Error saving session:', err.message);
+        }
+    }
+
+    load() {
+        try {
+            if (fs.existsSync(SESSION_FILE)) {
+                const data = JSON.parse(fs.readFileSync(SESSION_FILE, 'utf8'));
+                this.history = data.history || [];
+                this.entities = data.entities || {
+                    recentStores: [],
+                    discussedMetrics: [],
+                    lastTimeFilter: null,
+                    lastStoreFilter: null
+                };
+                this.lastQuery = data.lastQuery || null;
+                this.lastResults = data.lastResults || null;
+                this.lastSQL = data.lastSQL || null;
+            }
+        } catch (err) {
+            console.error('Error loading session:', err.message);
+        }
     }
 
     clear() {
@@ -104,7 +153,17 @@ LAST RESULTS (first 3 rows):
         this.lastQuery = null;
         this.lastResults = null;
         this.lastSQL = null;
+
+        // Remove file on clear
+        if (fs.existsSync(SESSION_FILE)) {
+            try {
+                fs.unlinkSync(SESSION_FILE);
+            } catch (err) {
+                console.error('Error deleting session file:', err.message);
+            }
+        }
     }
 }
 
 export const conversationContext = new ConversationContext();
+

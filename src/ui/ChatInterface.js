@@ -98,6 +98,10 @@ export class ChatInterface {
 
         try {
             const startTime = Date.now();
+
+            // Ensure we have the latest session state
+            conversationContext.load();
+
             const result = await app.invoke({
                 userQuery: query,
                 correctionAttempts: 0

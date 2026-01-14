@@ -16,6 +16,7 @@ export async function contextAwareQueryAgent(state) {
 
 === YOUR TASK ===
 Analyze the user's question and extract the key information needed to build a SQL query.
+You must decide if this is a FOLLOW-UP to the previous conversation or a COMPLETELY NEW query path.
 
 === THINKING PROCESS ===
 Follow these steps IN ORDER:
@@ -23,14 +24,15 @@ Follow these steps IN ORDER:
 STEP 1: READ THE QUESTION
 User's Question: "${userQuery}"
 
-STEP 2: CHECK FOR CONTEXT
-${hasContext ? `This is a FOLLOW-UP question. Previous conversation:
+STEP 2: EVALUATE CONTEXT
+${hasContext ? `Previous context is available:
 ${contextInfo}
 
-Ask yourself:
-- Does "they", "these", "those" refer to stores from the last query?
-- Does "it" refer to a metric we just discussed?
-- Is this asking for MORE info about the SAME stores?
+CRITICAL: Is this a follow-up? 
+- YES if: It uses pronouns (they, them, those, it, these) referring to previous results.
+- YES if: It asks for "more details", "what about manager time", "show ratings too" for the SAME stores.
+- NO if: It specifies a NEW filter (e.g., "now show mall stores", "compare Istanbul stores") that contradicts or replaces previous filters.
+- NO if: The user mentions a DIFFERENT metric or category without referencing the previous ones.
 ` : `This is a NEW conversation. No previous context.`}
 
 STEP 3: IDENTIFY THE METRIC
@@ -54,29 +56,23 @@ What conditions limit the data?
 STEP 5: IDENTIFY SORTING
 - "top", "best", "highest" → ORDER BY ... DESC
 - "bottom", "worst", "lowest" → ORDER BY ... ASC
-- "poorest", "weakest" → ORDER BY ... ASC
 
 STEP 6: IDENTIFY LIMIT
+- Use EXACTLY what the user asks for.
 - "top 10" → LIMIT 10
-- "bottom 20" → LIMIT 20
 - "top 5" → LIMIT 5
-- If user specifies a number, use that number
-- "all" or not specified → LIMIT 100 (safety limit)
-- IMPORTANT: Use EXACTLY what the user asks for, don't reduce it
-- FOR FOLLOW-UP QUERIES: If asking about "these stores" or "those branches" from last query,
-  the limit should match the number of stores being discussed (usually 20), NOT 100
+- If user specifies a number, use that number.
+- "all" or not specified → LIMIT 100 (safety limit).
+- FOLLOW-UP RULE: If this is a follow-up about specific stores from the last query, DO NOT apply a new LIMIT that would cut those stores off.
 
 STEP 7: IS THIS A KPI QUESTION?
 Does the user want analysis/recommendations, not just data?
-- "why are they performing badly" → needs KPI analysis
-- "what should we do" → needs KPI analysis
-- "show me the numbers" → just data, no KPI analysis
 
 === OUTPUT FORMAT ===
 Respond with ONLY a JSON object (no markdown, no explanation):
 
 {
-    "thinking": "Brief explanation of your reasoning",
+    "thinking": "Step-by-step reasoning about whether this is a follow-up or a new query.",
     "metric": "the main metric column name",
     "aggregation": "SUM or AVG or COUNT or NONE",
     "filters": {
@@ -107,6 +103,11 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 
         const analyzedQuery = JSON.parse(analysis);
 
+        // If it's explicitly NOT a follow-up, clear internal context or flags
+        if (!analyzedQuery.isFollowUp) {
+            analyzedQuery.useStoresFromLastQuery = false;
+        }
+
         console.log(chalk.gray(`   Intent: ${analyzedQuery.intent}`));
         console.log(chalk.gray(`   Metric: ${analyzedQuery.metric}`));
         console.log(chalk.gray(`   Follow-up: ${analyzedQuery.isFollowUp ? 'Yes' : 'No'}`));
@@ -121,6 +122,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
         return { error: `Query Understanding Error: ${err.message}` };
     }
 }
+
 
 // ================================
 // AGENT 2: ENHANCED SQL GENERATION
@@ -229,6 +231,9 @@ STEP 6: LIMIT CLAUSE
 3. ❌ Forgetting to aggregate order_month (it's per-month, use SUM for totals)
 4. ❌ Wrong sort order (ASC for worst, DESC for best)
 5. ❌ Missing year/month filters
+6. ❌ Forgot DISTINCT or GROUP BY when the user just wants a list of stores/names without duplicates.
+   - If the user asks for a LIST of stores/cities/types, use: SELECT DISTINCT column_name FROM ...
+   - OR use GROUP BY column_name to avoid seeing the same store 12 times (once for each month).
 
 === FINAL CHECK ===
 Before executing, verify your SQL has:
