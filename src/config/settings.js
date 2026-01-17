@@ -14,8 +14,8 @@ const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export const llm = new ChatAnthropic({
-    // model: "claude-opus-4-20250514",
-    model: "claude-sonnet-4-5-20250929",
+    model: "claude-opus-4-20250514",
+    // model: "claude-sonnet-4-5-20250929",
     temperature: 0,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });

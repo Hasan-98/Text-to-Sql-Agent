@@ -130,10 +130,6 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 export async function sqlGenerationAgent(state) {
     const { userQuery, analyzedQuery, correctionAttempts, validationResult, error } = state;
 
-    if (error) {
-        return { error };
-    }
-
     if (!analyzedQuery) {
         return { error: "Query analysis failed - cannot generate SQL" };
     }
@@ -332,7 +328,9 @@ export async function validationAgent(state) {
                 issues: ["Query execution failed - no results returned"],
                 suggestions: ["Check SQL syntax", "Verify column names exist", "Check WHERE conditions aren't too restrictive"]
             },
-            needsCorrection: correctionAttempts < 2
+            needsCorrection: correctionAttempts < 2,
+            correctionAttempts: correctionAttempts + 1,
+            error: null // Reset error so sqlGenerationAgent can try again
         };
     }
 
@@ -345,7 +343,9 @@ export async function validationAgent(state) {
                 issues: ["Query returned zero results"],
                 suggestions: ["Loosen the WHERE filters", "Check if data exists for the specified time period", "Verify store names are spelled correctly"]
             },
-            needsCorrection: correctionAttempts < 2
+            needsCorrection: correctionAttempts < 2,
+            correctionAttempts: correctionAttempts + 1,
+            error: null // Reset error so sqlGenerationAgent can try again
         };
     }
 

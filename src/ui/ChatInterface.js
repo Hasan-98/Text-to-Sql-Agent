@@ -105,7 +105,7 @@ export class ChatInterface {
             const result = await app.invoke({
                 userQuery: query,
                 correctionAttempts: 0
-            });
+            }, { recursionLimit: 50 });
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
             if (result.error && !result.queryResult) {
