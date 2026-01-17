@@ -8,7 +8,7 @@ export class ChatInterface {
         this.rl = readline.createInterface({
             input: process.stdin,
             output: process.stdout,
-            prompt: chalk.cyan('\n💬 You: ')
+            prompt: chalk.cyan('\n You: ')
         });
         this.isProcessing = false;
     }
@@ -16,9 +16,9 @@ export class ChatInterface {
     printWelcome() {
         console.clear();
         console.log(chalk.bold.green('\n╔════════════════════════════════════════════════════════════════════╗'));
-        console.log(chalk.bold.green('║   🤖 AI Retail Analytics Chat (Enhanced Self-Correcting Mode)     ║'));
+        console.log(chalk.bold.green('║    AI Retail Analytics Chat (Enhanced Self-Correcting Mode)     ║'));
         console.log(chalk.bold.green('╚════════════════════════════════════════════════════════════════════╝'));
-        console.log(chalk.yellow('\n📊 Ask questions about store performance - I\'ll validate and correct myself!'));
+        console.log(chalk.yellow('\nAsk questions about store performance - I\'ll validate and correct myself!'));
         console.log(chalk.gray('\nCommands:'));
         console.log(chalk.gray('  /help     - Show example queries'));
         console.log(chalk.gray('  /clear    - Clear conversation history'));
@@ -29,7 +29,7 @@ export class ChatInterface {
     }
 
     printHelp() {
-        console.log(chalk.yellow('\n📚 Example Queries:\n'));
+        console.log(chalk.yellow('\nExample Queries:\n'));
 
         console.log(chalk.cyan('Basic Queries:'));
         console.log('  • "Show top 10 stores by revenue"');
@@ -52,7 +52,7 @@ export class ChatInterface {
     }
 
     printSchema() {
-        console.log(chalk.yellow('\n📋 Database Schema Summary:\n'));
+        console.log(chalk.yellow('\nDatabase Schema Summary:\n'));
         console.log(chalk.cyan('Table: store_metrics'));
         console.log(chalk.gray('\nKey Columns:'));
         console.log('  • store_name, store_type, store_city');
@@ -64,7 +64,7 @@ export class ChatInterface {
     }
 
     printStats() {
-        console.log(chalk.yellow('\n📊 Conversation Statistics:'));
+        console.log(chalk.yellow('\nConversation Statistics:'));
         console.log(`   Queries asked: ${conversationContext.history.length}`);
         console.log(`   Stores discussed: ${conversationContext.entities.recentStores?.length || 0}`);
         console.log(`   Metrics tracked: ${conversationContext.entities.discussedMetrics?.length || 0}`);
@@ -109,7 +109,7 @@ export class ChatInterface {
             const duration = ((Date.now() - startTime) / 1000).toFixed(1);
 
             if (result.error && !result.queryResult) {
-                console.log(chalk.red(`\n❌ Error: ${result.error}`));
+                console.log(chalk.red(`\nError: ${result.error}`));
             } else {
                 // Show main answer
                 console.log(chalk.green('\n🤖 Assistant:\n'));
@@ -128,13 +128,13 @@ export class ChatInterface {
 
                 // Show tasks summary if available
                 if (result.generatedTasks?.tasks?.length > 0) {
-                    console.log(chalk.yellow(`\n📋 ${result.generatedTasks.summary.totalTasks} Action Tasks Generated`));
+                    console.log(chalk.yellow(`\n${result.generatedTasks.summary.totalTasks} Action Tasks Generated`));
                     console.log(chalk.gray(`   High priority: ${result.generatedTasks.summary.highPriority}`));
                 }
 
                 // Show data table
                 if (result.queryResult && result.queryResult.length > 0) {
-                    console.log(chalk.gray(`\n📊 Data Preview (${result.queryResult.length} total rows):`));
+                    console.log(chalk.gray(`\nData Preview (${result.queryResult.length} total rows):`));
 
                     // Show up to 20 rows, or all if less than 20
                     const displayLimit = Math.min(result.queryResult.length, 20);
@@ -147,14 +147,14 @@ export class ChatInterface {
 
                 // Show correction info
                 if (result.correctionAttempts > 1) {
-                    console.log(chalk.cyan(`\n🔄 Query was self-corrected ${result.correctionAttempts - 1} time(s)`));
+                    console.log(chalk.cyan(`\nQuery was self-corrected ${result.correctionAttempts - 1} time(s)`));
                 }
             }
 
-            console.log(chalk.gray(`\n⏱️  Completed in ${duration}s`));
+            console.log(chalk.gray(`\nCompleted in ${duration}s`));
 
         } catch (error) {
-            console.log(chalk.red(`\n❌ System Error: ${error.message}`));
+            console.log(chalk.red(`\nSystem Error: ${error.message}`));
             console.log(chalk.gray(error.stack));
         } finally {
             this.isProcessing = false;
@@ -179,7 +179,7 @@ export class ChatInterface {
 
             case '/clear':
                 conversationContext.clear();
-                console.log(chalk.green('\n✅ Conversation history cleared!'));
+                console.log(chalk.green('\n Conversation history cleared!'));
                 break;
 
             case '/stats':
@@ -192,13 +192,13 @@ export class ChatInterface {
 
             case '/exit':
             case '/quit':
-                console.log(chalk.yellow('\n👋 Thanks for using AI Retail Analytics! Goodbye!\n'));
+                console.log(chalk.yellow('\n Thanks for using AI Retail Analytics! Goodbye!\n'));
                 this.rl.close();
                 process.exit(0);
                 break;
 
             default:
-                console.log(chalk.red(`\n❌ Unknown command: ${command}`));
+                console.log(chalk.red(`\n Unknown command: ${command}`));
                 console.log(chalk.gray('Type /help for available commands'));
         }
 
@@ -213,7 +213,7 @@ export class ChatInterface {
         });
 
         this.rl.on('close', () => {
-            console.log(chalk.yellow('\n👋 Goodbye!\n'));
+            console.log(chalk.yellow('\nGoodbye!\n'));
             process.exit(0);
         });
 
