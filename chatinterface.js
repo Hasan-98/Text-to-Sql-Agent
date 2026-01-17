@@ -4,6 +4,7 @@
 // ================================
 import { createClient } from "@supabase/supabase-js";
 import { ChatOpenAI } from "@langchain/openai";
+import { ChatAnthropic } from "@langchain/anthropic";
 import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
@@ -23,12 +24,17 @@ const SUPABASE_ANON_KEY =
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Using a smaller model to demonstrate compatibility
-const llm = new ChatOpenAI({
-    model: process.env.LLM_MODEL || "gpt-4o-mini",
+// const llm = new ChatOpenAI({
+//     model: process.env.LLM_MODEL || "gpt-4o-mini",
+//     temperature: 0,
+//     openAIApiKey: process.env.OPENAI_API_KEY,
+// });
+const llm = new ChatAnthropic({
+    // model: "claude-opus-4-20250514",
+    model: "claude-sonnet-4-5-20250929",
     temperature: 0,
-    openAIApiKey: process.env.OPENAI_API_KEY,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
 });
-
 // ================================
 // ENHANCED SCHEMA WITH EXAMPLES
 // ================================
