@@ -1,0 +1,333 @@
+:root {
+  --primary-bg: #0f172a;
+  --sidebar-bg: rgba(30, 41, 59, 0.7);
+  --chat-bg: #1e293b;
+  --accent-blue: #38bdf8;
+  --accent-purple: #818cf8;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --message-user: #334155;
+  --message-agent: #1e293b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--primary-bg);
+  color: var(--text-main);
+  height: 100vh;
+  overflow: hidden;
+}
+
+#root {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100%;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background: var(--sidebar-bg);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem;
+  transition: all 0.3s ease;
+}
+
+.sidebar-header {
+  padding: 1rem 0;
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--accent-blue);
+  border-bottom: 1px solid var(--glass-border);
+  margin-bottom: 0.5rem;
+}
+
+.new-chat-btn {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1.5rem;
+  background: var(--glass);
+  border: 1px solid var(--accent-blue);
+  color: var(--accent-blue);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.new-chat-btn:hover {
+  background: var(--accent-blue);
+  color: #0f172a;
+}
+
+.history-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+.history-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.history-item {
+  padding: 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-bottom: 0.5rem;
+  transition: background 0.2s;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-muted);
+}
+
+.history-item:hover {
+  background: var(--glass);
+  color: var(--text-main);
+}
+
+.history-item.active {
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent-blue);
+  border-left: 3px solid var(--accent-blue);
+}
+
+/* Main Chat Area */
+.main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: radial-gradient(circle at top right, rgba(56, 189, 248, 0.05), transparent),
+    radial-gradient(circle at bottom left, rgba(129, 140, 248, 0.05), transparent);
+}
+
+.chat-window {
+  flex: 1;
+  padding: 2rem;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.message {
+  max-width: 80%;
+  padding: 1rem 1.5rem;
+  border-radius: 16px;
+  line-height: 1.5;
+  position: relative;
+}
+
+.message.user {
+  align-self: flex-end;
+  background: var(--message-user);
+  border-bottom-right-radius: 4px;
+}
+
+.message.agent {
+  align-self: flex-start;
+  background: var(--message-agent);
+  border: 1px solid var(--glass-border);
+  border-bottom-left-radius: 4px;
+}
+
+.input-area {
+  padding: 2rem;
+  background: linear-gradient(transparent, var(--primary-bg));
+}
+
+.input-container {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.welcome-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.welcome-screen h2 {
+  color: var(--accent-blue);
+  margin-bottom: 1rem;
+}
+
+input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-main);
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  outline: none;
+}
+
+button.send-btn {
+  background: var(--accent-blue);
+  color: #0f172a;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+button.send-btn:hover {
+  transform: scale(1.05);
+}
+
+/* KPI and Table styling */
+.kpi-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-top: 1rem;
+  border: 1px solid var(--glass-border);
+}
+
+.table-container {
+  overflow-x: auto;
+  margin-top: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.table-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--accent-blue);
+}
+
+.view-toggle {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.view-toggle:hover {
+  background: var(--accent-blue);
+  color: #0f172a;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+th {
+  text-align: left;
+  color: var(--accent-blue);
+  padding: 0.5rem;
+  border-bottom: 2px solid var(--glass-border);
+}
+
+td {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+/* Tasks Styling */
+.tasks-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.task-item {
+  background: rgba(129, 140, 248, 0.1);
+  border-left: 4px solid var(--accent-purple);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.task-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+
+.btn-ok {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-reject {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Typing Animation */
+.typing-loader {
+  width: 40px;
+  height: 10px;
+  background: linear-gradient(90deg, var(--accent-blue) 33%, transparent 33%, transparent 66%, var(--accent-blue) 66%);
+  background-size: 300% 100%;
+  animation: typing 1s infinite linear;
+  border-radius: 5px;
+}
+
+@keyframes typing {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: 0% 0;
+  }
+}

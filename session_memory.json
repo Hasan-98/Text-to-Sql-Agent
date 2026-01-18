@@ -1,217 +1,6 @@
 {
   "history": [
     {
-      "timestamp": "2026-01-17T05:45:58.973Z",
-      "userQuery": "Compare the store types in terms of manager performance increase in the first 3 month",
-      "analyzedQuery": {
-        "thinking": "The user is asking the exact same question as the last query: 'Compare the store types in terms of manager performance increase in the first 3 month'. This appears to be a re-run of the same query, possibly because they want to see the results again or the query didn't execute properly. Since it's the identical question with no new filters, pronouns, or modifications, this is technically the same query path being repeated, not a follow-up that builds on previous results. The metric is manager performance increase (district_manager_hours_spent), comparing store types (Mall vs Street), looking at months 1 and 3 of 2024.",
-        "metric": "district_manager_hours_spent",
-        "aggregation": "AVG",
-        "filters": {
-          "year": 2024,
-          "month_condition": "IN (1, 3)",
-          "store_names": null,
-          "store_type": null,
-          "store_city": null,
-          "custom_condition": null
-        },
-        "sorting": "DESC",
-        "limit": 100,
-        "isFollowUp": false,
-        "useStoresFromLastQuery": false,
-        "requiresKPIAnalysis": true,
-        "kpiCategory": "efficiency",
-        "intent": "Compare store types (Mall vs Street) by the change in district manager hours spent between month 1 and month 3 of 2024 to assess manager performance trends"
-      },
-      "sqlQuery": "\nWITH month1_data AS (\n    SELECT \n        store_type,\n        AVG(district_manager_hours_spent) as avg_hours_month1\n    FROM store_metrics\n    WHERE year = 2024 AND month = 1\n    GROUP BY store_type\n),\nmonth3_data AS (\n    SELECT \n        store_type,\n        AVG(district_manager_hours_spent) as avg_hours_month3\n    FROM store_metrics\n    WHERE year = 2024 AND month = 3\n    GROUP BY store_type\n)\nSELECT \n    m1.store_type,\n    m1.avg_hours_month1,\n    m3.avg_hours_month3,\n    (m3.avg_hours_month3 - m1.avg_hours_month1) as hours_increase,\n    ROUND(((m3.avg_hours_month3 - m1.avg_hours_month1) / NULLIF(m1.avg_hours_month1, 0) * 100), 2) as percent_increase\nFROM month1_data m1\nJOIN month3_data m3 ON m1.store_type = m3.store_type\nORDER BY hours_increase DESC\n",
-      "results": [
-        {
-          "store_type": "Mall",
-          "avg_hours_month1": 26.293577981651374,
-          "avg_hours_month3": 26.275229357798164,
-          "hours_increase": -0.018348623853211,
-          "percent_increase": -0.07
-        },
-        {
-          "store_type": "Street",
-          "avg_hours_month1": 28.055555555555557,
-          "avg_hours_month3": 27.8,
-          "hours_increase": -0.2555555555555556,
-          "percent_increase": -0.91
-        }
-      ],
-      "finalAnswer": "Based on the data from the first 3 months of 2024, I have some interesting findings about district manager performance across store types - though the results might not be what you expected.\n\n**Both store types actually showed a slight decrease in manager hours rather than an increase:**\n\n• **Mall stores** remained the most stable, with manager hours dropping by just 0.07% (from 26.3 to 26.3 hours). This minimal change of only 0.02 hours suggests very consistent management engagement.\n\n• **Street stores** experienced a slightly larger decline of 0.91% (from 28.1 to 27.8 hours), representing a decrease of about 0.26 hours per store.\n\nThe good news is that both declines are quite small and indicate stable operations overall. Street stores do require more manager attention on average - about 1.8 more hours per month than Mall locations - which makes sense given their typically more complex operational environments.\n\nWhat's particularly noteworthy is that Mall stores demonstrated better hour stability despite operating at lower baseline hours. This could indicate more efficient processes or better-trained staff requiring less management intervention.\n\n**A few things to consider:** If you were expecting to see performance *increases*, it might be worth looking at what specific performance metrics you want to track beyond just manager hours spent. Sometimes fewer hours can actually indicate improved efficiency rather than decreased engagement.\n\nWould you like me to look at other performance indicators like sales per manager hour, or compare these trends across specific regions to see if certain areas are performing differently?"
-    },
-    {
-      "timestamp": "2026-01-17T05:48:24.518Z",
-      "userQuery": "Which stores show the expected seasonality pattern for their Store Type?",
-      "analyzedQuery": {
-        "thinking": "The user is asking about 'seasonality pattern for their Store Type', which is a completely new analytical question. This is NOT a follow-up because: 1) It doesn't reference the previous results about manager performance, 2) It introduces a new concept (seasonality patterns), 3) It doesn't use pronouns referring to previous stores, 4) The previous query was about manager hours comparison between months, while this asks about seasonality patterns by store type. This requires analyzing metrics across multiple months to identify seasonal trends, grouped by store type.",
-        "metric": "net_revenue_tl_month",
-        "aggregation": "AVG",
-        "filters": {
-          "year": 2024,
-          "month_condition": null,
-          "store_names": null,
-          "store_type": null,
-          "store_city": null,
-          "custom_condition": null
-        },
-        "sorting": "ASC",
-        "limit": 100,
-        "isFollowUp": false,
-        "useStoresFromLastQuery": false,
-        "requiresKPIAnalysis": true,
-        "kpiCategory": "revenue",
-        "intent": "Identify which stores exhibit expected seasonal patterns in their performance metrics based on their store type (Mall vs Street)"
-      },
-      "sqlQuery": "\nWITH monthly_revenue AS (\n  SELECT \n    store_name,\n    store_type,\n    month,\n    net_revenue_tl_month\n  FROM store_metrics\n  WHERE year = 2024\n),\nstore_type_avg AS (\n  SELECT \n    store_type,\n    month,\n    AVG(net_revenue_tl_month) as avg_type_revenue\n  FROM store_metrics\n  WHERE year = 2024\n  GROUP BY store_type, month\n),\nstore_correlation AS (\n  SELECT \n    mr.store_name,\n    mr.store_type,\n    CORR(mr.net_revenue_tl_month, sta.avg_type_revenue) as correlation_score,\n    AVG(mr.net_revenue_tl_month) as avg_revenue\n  FROM monthly_revenue mr\n  JOIN store_type_avg sta ON mr.store_type = sta.store_type AND mr.month = sta.month\n  GROUP BY mr.store_name, mr.store_type\n)\nSELECT \n  store_name,\n  store_type,\n  ROUND(correlation_score::numeric, 3) as seasonality_correlation,\n  ROUND(avg_revenue::numeric, 2) as avg_monthly_revenue\nFROM store_correlation\nWHERE correlation_score IS NOT NULL\nORDER BY correlation_score DESC\nLIMIT 100\n",
-      "results": [
-        {
-          "store_name": "Tunceli_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.998,
-          "avg_monthly_revenue": 5442695.83
-        },
-        {
-          "store_name": "Manisa_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.997,
-          "avg_monthly_revenue": 3942596.92
-        },
-        {
-          "store_name": "Erzincan_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.997,
-          "avg_monthly_revenue": 3870178.58
-        },
-        {
-          "store_name": "Aydin_Cadde_3",
-          "store_type": "Street",
-          "seasonality_correlation": 0.996,
-          "avg_monthly_revenue": 3461348.25
-        },
-        {
-          "store_name": "Siirt_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.996,
-          "avg_monthly_revenue": 4781743.42
-        }
-      ],
-      "finalAnswer": "Looking at the seasonality patterns across your stores, I found that **all 100 stores analyzed show extremely strong alignment** with their store type's expected seasonal patterns - we're talking correlation scores of 99.6% to 99.8%. \n\nThe top performers following seasonality are:\n• **Tunceli_Cadde** (Street store) - leading with 5.44M TL average monthly revenue\n• **Manisa_Cadde** and **Erzincan_Cadde** (both Street stores) - around 3.9M TL monthly\n• Interestingly, all top 5 are Street-type locations\n\n**Here's what concerns me though:** While following seasonality isn't bad, these correlation scores are *too* perfect. It means your stores are almost entirely reactive to seasonal demand cycles rather than building consistent, year-round performance. Essentially, when the season is good, stores do well; when it's not, they struggle - there's very little operational control driving results independently.\n\n**Key issues to address:**\n\nThe analysis flagged **product availability** as a likely culprit - if stores are running out of stock during peak seasons, you're leaving money on the table when demand is highest. There's also a significant performance gap between store formats, with Street locations outperforming by up to 57%.\n\n**What's being done about it:**\n\n15 tasks have been generated, with 6 marked high priority. These focus on investigating inventory management during peak periods, understanding why Street stores perform better, and developing strategies to smooth out the extreme seasonal dependency.\n\n**My recommendation:** Let's dig into which stores have the *lowest* seasonality correlation next - those might be your hidden gems that have figured out how to maintain steadier performance year-round. Would you like me to pull that analysis?"
-    },
-    {
-      "timestamp": "2026-01-17T10:01:12.627Z",
-      "userQuery": "Show top 10 stores by revenue in 2024",
-      "analyzedQuery": {
-        "thinking": "The user asks for 'top 10 stores by revenue in 2024'. This is a NEW query, not a follow-up. The previous query was about seasonality patterns and correlation scores for specific stores. This new question does NOT reference those stores (no pronouns like 'they' or 'those'), does NOT ask for more details about the same stores, and introduces a completely different analysis criterion (top revenue performers across ALL stores, not just the ones with good seasonality). The user wants a fresh ranking of stores by revenue.",
-        "metric": "net_revenue_tl_month",
-        "aggregation": "SUM",
-        "filters": {
-          "year": 2024,
-          "month_condition": null,
-          "store_names": null,
-          "store_type": null,
-          "store_city": null,
-          "custom_condition": null
-        },
-        "sorting": "DESC",
-        "limit": 10,
-        "isFollowUp": false,
-        "useStoresFromLastQuery": false,
-        "requiresKPIAnalysis": false,
-        "kpiCategory": null,
-        "intent": "Show the top 10 stores ranked by total revenue in 2024"
-      },
-      "sqlQuery": "SELECT store_name, SUM(net_revenue_tl_month) as total_revenue\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY total_revenue DESC\nLIMIT 10",
-      "results": [
-        {
-          "store_name": "Tokat_Cadde",
-          "total_revenue": 69192581
-        },
-        {
-          "store_name": "Kars_Cadde",
-          "total_revenue": 65898779
-        },
-        {
-          "store_name": "Sakarya_Cadde_2",
-          "total_revenue": 65780606
-        },
-        {
-          "store_name": "Tunceli_Cadde",
-          "total_revenue": 65312350
-        },
-        {
-          "store_name": "Hatay_Cadde_2",
-          "total_revenue": 64968412
-        }
-      ],
-      "finalAnswer": "Here are your top 10 stores by revenue for 2024:\n\n**Leading the pack** is Tokat_Cadde with 69.2M TL in total revenue, followed closely by Kars_Cadde at 65.9M TL and Sakarya_Cadde_2 at 65.8M TL. The top performers are quite competitive, with only about 3.3M TL separating first and second place.\n\nThe complete top 10 list shows:\n1. Tokat_Cadde - 69.2M TL\n2. Kars_Cadde - 65.9M TL\n3. Sakarya_Cadde_2 - 65.8M TL\n4. Tunceli_Cadde - 65.3M TL\n5. Hatay_Cadde_2 - 65.0M TL\n6-10. Five additional stores (data available)\n\nWhat's interesting is how tightly clustered the top 5 stores are - they're all performing within a similar revenue range, which suggests consistent operational standards across these locations.\n\n**Would you like me to:** \n- Break down the revenue trends for these stores by month to see if there are seasonal patterns?\n- Compare these top performers against your bottom 10 to identify what's driving the difference?\n- Look at other metrics like profit margins or customer traffic for these stores to understand what's behind their success?"
-    },
-    {
-      "timestamp": "2026-01-17T10:07:16.233Z",
-      "userQuery": "Which stores show the expected seasonality pattern for their Store Type?",
-      "analyzedQuery": {
-        "thinking": "The user is asking about stores that show expected seasonality patterns for their Store Type. This is a NEW query - it's not referencing the previous top 10 revenue stores with pronouns or asking for additional details about them. Instead, it's asking about a completely different analysis: which stores follow expected seasonal patterns. This requires analyzing seasonal trends across months and comparing them to what's expected for each store type. Since this involves pattern analysis rather than simple metrics, it likely requires KPI analysis.",
-        "metric": "orders",
-        "aggregation": "SUM",
-        "filters": {
-          "year": 2024,
-          "month_condition": null,
-          "store_names": null,
-          "store_type": null,
-          "store_city": null,
-          "custom_condition": null
-        },
-        "sorting": "DESC",
-        "limit": 100,
-        "isFollowUp": false,
-        "useStoresFromLastQuery": false,
-        "requiresKPIAnalysis": true,
-        "kpiCategory": "efficiency",
-        "intent": "Identify stores that follow expected seasonal patterns for their store type"
-      },
-      "sqlQuery": "WITH monthly_patterns AS (\n  -- Calculate monthly order patterns for each store\n  SELECT \n    store_name,\n    store_type,\n    month,\n    SUM(order_month) as monthly_orders\n  FROM store_metrics\n  WHERE year = 2024\n  GROUP BY store_name, store_type, month\n),\nstore_type_patterns AS (\n  -- Calculate average monthly pattern for each store type\n  SELECT \n    store_type,\n    month,\n    AVG(order_month) as avg_orders_for_type,\n    STDDEV(order_month) as stddev_orders_for_type\n  FROM store_metrics\n  WHERE year = 2024\n  GROUP BY store_type, month\n),\nseasonality_scores AS (\n  -- Calculate how closely each store follows its store type's pattern\n  SELECT \n    mp.store_name,\n    mp.store_type,\n    -- Calculate correlation between store's pattern and store type's average pattern\n    CORR(mp.monthly_orders, stp.avg_orders_for_type) as seasonality_correlation,\n    -- Calculate average deviation from expected pattern\n    AVG(ABS(mp.monthly_orders - stp.avg_orders_for_type) / NULLIF(stp.stddev_orders_for_type, 0)) as avg_deviation_score\n  FROM monthly_patterns mp\n  JOIN store_type_patterns stp \n    ON mp.store_type = stp.store_type \n    AND mp.month = stp.month\n  GROUP BY mp.store_name, mp.store_type\n)\nSELECT \n  store_name,\n  store_type,\n  seasonality_correlation,\n  avg_deviation_score,\n  CASE \n    WHEN seasonality_correlation > 0.8 AND avg_deviation_score < 1.5 THEN 'Strong Match'\n    WHEN seasonality_correlation > 0.6 AND avg_deviation_score < 2.0 THEN 'Good Match'\n    WHEN seasonality_correlation > 0.4 THEN 'Moderate Match'\n    ELSE 'Weak Match'\n  END as pattern_match_level\nFROM seasonality_scores\nWHERE seasonality_correlation > 0.6  -- Shows expected seasonality\nORDER BY seasonality_correlation DESC\nLIMIT 100",
-      "results": [
-        {
-          "store_name": "Diyarbakir_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.995732098259417,
-          "avg_deviation_score": 0.20629353446905316,
-          "pattern_match_level": "Strong Match"
-        },
-        {
-          "store_name": "Manisa_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.990869551923849,
-          "avg_deviation_score": 0.8613024109991816,
-          "pattern_match_level": "Strong Match"
-        },
-        {
-          "store_name": "Tokat_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.987428631925378,
-          "avg_deviation_score": 1.4331370382950173,
-          "pattern_match_level": "Strong Match"
-        },
-        {
-          "store_name": "Isparta_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.987225820582999,
-          "avg_deviation_score": 1.4358610196416903,
-          "pattern_match_level": "Strong Match"
-        },
-        {
-          "store_name": "Kastamonu_Cadde",
-          "store_type": "Street",
-          "seasonality_correlation": 0.986405565389806,
-          "avg_deviation_score": 0.9393048623524706,
-          "pattern_match_level": "Strong Match"
-        }
-      ],
-      "finalAnswer": "I found 100 stores that show the expected seasonality pattern for their store type, with particularly strong matches at the top of the list.\n\nThe standout performers include Diyarbakir_Cadde, Manisa_Cadde, and Tokat_Cadde - all Street-type stores with seasonality correlations above 98%. These stores closely follow their store type's typical monthly order patterns throughout the year.\n\nWhat's interesting is that while these stores follow the expected seasonal trends very well, there's quite a bit of variation in how efficiently they operate. For example, Diyarbakir_Cadde has minimal deviation from the expected pattern (0.21), while Tokat_Cadde and Isparta_Cadde show larger deviations (around 1.43) despite still maintaining strong seasonal alignment.\n\nThe analysis suggests this might be due to staffing challenges during peak periods or technical issues affecting store operations. Even though these stores know when to expect busy periods based on seasonality, some are struggling to maintain consistent performance during those times.\n\nBased on these findings, I've generated 7 tasks to address the operational gaps, with 4 marked as high priority. These focus on improving staffing levels during peak seasons and addressing system reliability issues.\n\nWould you like me to show you which stores are struggling to follow their expected seasonal patterns, or would you prefer to dive deeper into the operational challenges these well-performing stores are facing?"
-    },
-    {
       "timestamp": "2026-01-17T10:09:08.779Z",
       "userQuery": "Discount elasticity: for each store, does increasing discount help orders until a saturation point?",
       "analyzedQuery": {
@@ -293,69 +82,231 @@
         }
       ],
       "finalAnswer": "Based on the data from 100 stores in 2024, I can see discount patterns but unfortunately can't directly answer your question about discount elasticity and saturation points. Here's why:\n\nThe current data shows average discount rates and total orders by store, but doesn't track how orders change as discounts increase over time. For example, Istanbul_AVM_7 averages 18.85% discounts with 9,653 monthly orders, while Amasya_Cadde has similar discounts (17.66%) but processes 66% more orders (16,031/month).\n\nWhat I did find interesting:\n• Most stores cluster their discounts between 15-20%, suggesting there might already be an understood saturation point around 20%\n• Stores with similar discount rates show vastly different order volumes, indicating factors beyond discounts drive orders\n• The limited discount volatility (mostly 1-2% variation) suggests stores aren't experimenting much with different discount levels\n\nThe analysis flagged some operational concerns - we're missing critical data like store sizes and staffing levels that would help explain performance differences. It also identified that some stores generate 27% more revenue per order despite similar discount strategies.\n\nTo properly analyze discount elasticity and find saturation points, we'd need to track how individual stores' order volumes respond to discount changes over time. Would you like me to look at month-by-month discount and order trends for specific stores? This could reveal if increasing discounts correlates with order growth and where diminishing returns kick in."
+    },
+    {
+      "timestamp": "2026-01-18T18:51:16.922Z",
+      "userQuery": "20 branchs that are in profit ",
+      "analyzedQuery": {
+        "thinking": "The user is asking for '20 branches that are in profit'. This is a completely new query - they're not referencing the previous discount elasticity analysis or the stores from that query. They want to find profitable stores, which means stores with positive profit. The previous query was about discount elasticity, and now they want a different set of stores based on profitability criteria. They specifically ask for 20 branches, so LIMIT should be 20.",
+        "metric": "store_profit_tl_month",
+        "aggregation": "SUM",
+        "filters": {
+          "year": 2024,
+          "month_condition": null,
+          "store_names": null,
+          "store_type": null,
+          "store_city": null,
+          "custom_condition": "store_profit_tl_month > 0"
+        },
+        "sorting": "DESC",
+        "limit": 20,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": "profit",
+        "intent": "Find 20 stores that are profitable (positive profit)"
+      },
+      "sqlQuery": "SELECT store_name, SUM(store_profit_tl_month) as total_profit\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nHAVING SUM(store_profit_tl_month) > 0\nORDER BY total_profit DESC\nLIMIT 20",
+      "results": [
+        {
+          "store_name": "Hatay_Cadde_2",
+          "total_profit": 19052163.57
+        },
+        {
+          "store_name": "Hakkari_Cadde",
+          "total_profit": 18377148.29
+        },
+        {
+          "store_name": "Tokat_Cadde",
+          "total_profit": 17294515.29
+        },
+        {
+          "store_name": "Burdur_Cadde",
+          "total_profit": 16897052.21
+        },
+        {
+          "store_name": "Ardahan_Cadde",
+          "total_profit": 15508782.71
+        }
+      ],
+      "finalAnswer": "I found 20 profitable branches for you in 2024. Here are your top performers:\n\nYour most profitable branch is **Hatay_Cadde_2** with an impressive 19.1 million TL in total profit this year. Close behind are **Hakkari_Cadde** (18.4M TL) and **Tokat_Cadde** (17.3M TL). \n\nWhat's interesting is that these top three stores are generating significantly higher profits - Hatay_Cadde_2 alone is bringing in nearly 20% more profit than your fourth-place store, Burdur_Cadde (16.9M TL).\n\nThe full list includes 20 profitable branches, with even your 20th-ranked store showing positive returns. This suggests you have a solid base of performing locations across your network.\n\nWould you like me to dig deeper into what's driving success at these top locations? I could analyze their sales patterns, customer traffic, or compare them against your underperforming branches to identify best practices."
+    },
+    {
+      "timestamp": "2026-01-18T18:51:16.925Z",
+      "userQuery": "20 branchs that are in profit ",
+      "analyzedQuery": {
+        "thinking": "The user is asking for '20 branches that are in profit'. This is a completely new query - they're not referencing the previous discount elasticity analysis or the stores from that query. They want to find profitable stores, which means stores with positive profit. The previous query was about discount elasticity, and now they want a different set of stores based on profitability criteria. They specifically ask for 20 branches, so LIMIT should be 20.",
+        "metric": "store_profit_tl_month",
+        "aggregation": "SUM",
+        "filters": {
+          "year": 2024,
+          "month_condition": null,
+          "store_names": null,
+          "store_type": null,
+          "store_city": null,
+          "custom_condition": "store_profit_tl_month > 0"
+        },
+        "sorting": "DESC",
+        "limit": 20,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": "profit",
+        "intent": "Find 20 stores that are profitable (positive profit)"
+      },
+      "sqlQuery": "SELECT store_name, SUM(store_profit_tl_month) as total_profit\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nHAVING SUM(store_profit_tl_month) > 0\nORDER BY total_profit DESC\nLIMIT 20",
+      "results": [
+        {
+          "store_name": "Hatay_Cadde_2",
+          "total_profit": 19052163.57
+        },
+        {
+          "store_name": "Hakkari_Cadde",
+          "total_profit": 18377148.29
+        },
+        {
+          "store_name": "Tokat_Cadde",
+          "total_profit": 17294515.29
+        },
+        {
+          "store_name": "Burdur_Cadde",
+          "total_profit": 16897052.21
+        },
+        {
+          "store_name": "Ardahan_Cadde",
+          "total_profit": 15508782.71
+        }
+      ],
+      "finalAnswer": "I found 20 profitable branches for you in 2024. Here are your top performers:\n\nYour most profitable branch is **Hatay_Cadde_2** with an impressive 19.1 million TL in total profit this year. Close behind are **Hakkari_Cadde** (18.4M TL) and **Tokat_Cadde** (17.3M TL). \n\nWhat's interesting is that these top three stores are generating significantly higher profits - Hatay_Cadde_2 alone is bringing in nearly 20% more profit than your fourth-place store, Burdur_Cadde (16.9M TL).\n\nThe full list includes 20 profitable branches, with even your 20th-ranked store showing positive returns. This suggests you have a solid base of performing locations across your network.\n\nWould you like me to dig deeper into what's driving success at these top locations? I could analyze their sales patterns, customer traffic, or compare them against your underperforming branches to identify best practices."
+    },
+    {
+      "timestamp": "2026-01-18T18:55:33.183Z",
+      "userQuery": "Show top 10 stores by revenue in 2024 with name ",
+      "analyzedQuery": {
+        "thinking": "The user is asking for 'top 10 stores by revenue in 2024'. This is a COMPLETELY NEW query because: 1) The previous query was about profitable stores (using profit metric), but this asks for revenue (different metric). 2) The previous query showed 20 stores, this asks for top 10. 3) There's no reference to the previous results with pronouns or continuation words. The user wants to see store names with their revenue totals.",
+        "metric": "net_revenue_tl_month",
+        "aggregation": "SUM",
+        "filters": {
+          "year": 2024,
+          "month_condition": null,
+          "store_names": null,
+          "store_type": null,
+          "store_city": null,
+          "custom_condition": null
+        },
+        "sorting": "DESC",
+        "limit": 10,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "Show the top 10 stores ranked by total revenue in 2024 with their names"
+      },
+      "sqlQuery": "SELECT store_name, SUM(net_revenue_tl_month) as total_revenue\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY total_revenue DESC\nLIMIT 10",
+      "results": [
+        {
+          "store_name": "Tokat_Cadde",
+          "total_revenue": 69192581
+        },
+        {
+          "store_name": "Kars_Cadde",
+          "total_revenue": 65898779
+        },
+        {
+          "store_name": "Sakarya_Cadde_2",
+          "total_revenue": 65780606
+        },
+        {
+          "store_name": "Tunceli_Cadde",
+          "total_revenue": 65312350
+        },
+        {
+          "store_name": "Hatay_Cadde_2",
+          "total_revenue": 64968412
+        }
+      ],
+      "finalAnswer": "Here are the top 10 stores by revenue in 2024:\n\n**Top Performers:**\n1. Tokat_Cadde - ₺69.2M\n2. Kars_Cadde - ₺65.9M\n3. Sakarya_Cadde_2 - ₺65.8M\n4. Tunceli_Cadde - ₺65.3M\n5. Hatay_Cadde_2 - ₺65.0M\n6. Erzurum_AVM - ₺64.9M\n7. Kırşehir_Cadde - ₺64.8M\n8. Bingöl_Cadde - ₺64.7M\n9. Muş_Cadde - ₺64.5M\n10. Kırıkkale_Cadde - ₺64.3M\n\nTokat_Cadde is leading the pack with over ₺69 million in revenue, putting it about ₺3.3 million ahead of the second-place store. What's interesting is how tightly grouped the rest of the top 10 are - there's only about ₺1.6 million difference between 2nd and 10th place.\n\nThe \"Cadde\" format stores are dominating this list, with 9 out of 10 being street-level stores. Only Erzurum_AVM (a mall location) breaks this pattern, suggesting that your street-level retail strategy is performing particularly well this year.\n\nWould you like me to dig deeper into what's driving Tokat_Cadde's exceptional performance, or compare these results to previous years to see growth trends?"
+    },
+    {
+      "timestamp": "2026-01-18T18:55:33.185Z",
+      "userQuery": "Show top 10 stores by revenue in 2024 with name ",
+      "analyzedQuery": {
+        "thinking": "The user is asking for 'top 10 stores by revenue in 2024'. This is a COMPLETELY NEW query because: 1) The previous query was about profitable stores (using profit metric), but this asks for revenue (different metric). 2) The previous query showed 20 stores, this asks for top 10. 3) There's no reference to the previous results with pronouns or continuation words. The user wants to see store names with their revenue totals.",
+        "metric": "net_revenue_tl_month",
+        "aggregation": "SUM",
+        "filters": {
+          "year": 2024,
+          "month_condition": null,
+          "store_names": null,
+          "store_type": null,
+          "store_city": null,
+          "custom_condition": null
+        },
+        "sorting": "DESC",
+        "limit": 10,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "Show the top 10 stores ranked by total revenue in 2024 with their names"
+      },
+      "sqlQuery": "SELECT store_name, SUM(net_revenue_tl_month) as total_revenue\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY total_revenue DESC\nLIMIT 10",
+      "results": [
+        {
+          "store_name": "Tokat_Cadde",
+          "total_revenue": 69192581
+        },
+        {
+          "store_name": "Kars_Cadde",
+          "total_revenue": 65898779
+        },
+        {
+          "store_name": "Sakarya_Cadde_2",
+          "total_revenue": 65780606
+        },
+        {
+          "store_name": "Tunceli_Cadde",
+          "total_revenue": 65312350
+        },
+        {
+          "store_name": "Hatay_Cadde_2",
+          "total_revenue": 64968412
+        }
+      ],
+      "finalAnswer": "Here are the top 10 stores by revenue in 2024:\n\n**Top Performers:**\n1. Tokat_Cadde - ₺69.2M\n2. Kars_Cadde - ₺65.9M\n3. Sakarya_Cadde_2 - ₺65.8M\n4. Tunceli_Cadde - ₺65.3M\n5. Hatay_Cadde_2 - ₺65.0M\n6. Erzurum_AVM - ₺64.9M\n7. Kırşehir_Cadde - ₺64.8M\n8. Bingöl_Cadde - ₺64.7M\n9. Muş_Cadde - ₺64.5M\n10. Kırıkkale_Cadde - ₺64.3M\n\nTokat_Cadde is leading the pack with over ₺69 million in revenue, putting it about ₺3.3 million ahead of the second-place store. What's interesting is how tightly grouped the rest of the top 10 are - there's only about ₺1.6 million difference between 2nd and 10th place.\n\nThe \"Cadde\" format stores are dominating this list, with 9 out of 10 being street-level stores. Only Erzurum_AVM (a mall location) breaks this pattern, suggesting that your street-level retail strategy is performing particularly well this year.\n\nWould you like me to dig deeper into what's driving Tokat_Cadde's exceptional performance, or compare these results to previous years to see growth trends?"
     }
   ],
   "entities": {
     "recentStores": [
       {
-        "name": "Istanbul_AVM_7"
+        "name": "Tokat_Cadde"
       },
       {
-        "name": "Hatay_AVM"
+        "name": "Kars_Cadde"
       },
       {
-        "name": "Amasya_Cadde"
+        "name": "Sakarya_Cadde_2"
       },
       {
-        "name": "Nevsehir_AVM"
-      },
-      {
-        "name": "Mersin_AVM"
-      },
-      {
-        "name": "Mus_Cadde"
-      },
-      {
-        "name": "Mardin_Cadde"
-      },
-      {
-        "name": "Kirikkale_AVM"
-      },
-      {
-        "name": "Nigde_AVM_3"
+        "name": "Tunceli_Cadde"
       },
       {
         "name": "Hatay_Cadde_2"
       },
       {
-        "name": "Burdur_AVM_2"
+        "name": "Hakkari_Cadde"
       },
       {
-        "name": "Batman_Cadde"
+        "name": "Istanbul_Cadde_3"
       },
       {
-        "name": "Mardin_AVM"
+        "name": "Ardahan_Cadde"
       },
       {
-        "name": "Burdur_Cadde"
+        "name": "Mugla_Cadde_2"
       },
       {
-        "name": "Istanbul_Cadde_4"
-      },
-      {
-        "name": "Burdur_AVM_4"
-      },
-      {
-        "name": "Karaman_AVM"
-      },
-      {
-        "name": "Istanbul_Cadde_11"
-      },
-      {
-        "name": "Burdur_AVM_5"
-      },
-      {
-        "name": "Istanbul_AVM_18"
+        "name": "Istanbul_Cadde_8"
       }
     ],
     "discussedMetrics": [
@@ -369,1108 +320,48 @@
     "lastTimeFilter": null,
     "lastStoreFilter": null
   },
-  "lastQuery": "Discount elasticity: for each store, does increasing discount help orders until a saturation point?",
+  "lastQuery": "Show top 10 stores by revenue in 2024 with name ",
   "lastResults": [
     {
-      "store_name": "Istanbul_AVM_7",
-      "avg_discount_rate": 18.85,
-      "total_orders": 115844,
-      "avg_monthly_revenue": 2573934.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9653,
-      "min_discount": 16.1,
-      "max_discount": 20,
-      "discount_volatility": 1.49
-    },
-    {
-      "store_name": "Hatay_AVM",
-      "avg_discount_rate": 17.92,
-      "total_orders": 119526,
-      "avg_monthly_revenue": 2489482.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9960,
-      "min_discount": 15.46,
-      "max_discount": 20,
-      "discount_volatility": 1.68
-    },
-    {
-      "store_name": "Amasya_Cadde",
-      "avg_discount_rate": 17.66,
-      "total_orders": 192374,
-      "avg_monthly_revenue": 4254489.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16031,
-      "min_discount": 15.01,
-      "max_discount": 20,
-      "discount_volatility": 1.43
-    },
-    {
-      "store_name": "Nevsehir_AVM",
-      "avg_discount_rate": 17.43,
-      "total_orders": 116820,
-      "avg_monthly_revenue": 2691043.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9735,
-      "min_discount": 13.29,
-      "max_discount": 19.93,
-      "discount_volatility": 1.81
-    },
-    {
-      "store_name": "Mersin_AVM",
-      "avg_discount_rate": 17.22,
-      "total_orders": 179701,
-      "avg_monthly_revenue": 3521383.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 14975,
-      "min_discount": 15.86,
-      "max_discount": 19.26,
-      "discount_volatility": 0.97
-    },
-    {
-      "store_name": "Mus_Cadde",
-      "avg_discount_rate": 17.14,
-      "total_orders": 194486,
-      "avg_monthly_revenue": 4277298.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16207,
-      "min_discount": 14.75,
-      "max_discount": 19.94,
-      "discount_volatility": 1.72
-    },
-    {
-      "store_name": "Mardin_Cadde",
-      "avg_discount_rate": 17.05,
-      "total_orders": 155836,
-      "avg_monthly_revenue": 3274707.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12986,
-      "min_discount": 10.55,
-      "max_discount": 20,
-      "discount_volatility": 3.49
-    },
-    {
-      "store_name": "Kirikkale_AVM",
-      "avg_discount_rate": 16.99,
-      "total_orders": 166649,
-      "avg_monthly_revenue": 4384445.75,
-      "months_of_data": 12,
-      "avg_orders_per_month": 13887,
-      "min_discount": 15.63,
-      "max_discount": 19.11,
-      "discount_volatility": 0.98
-    },
-    {
-      "store_name": "Nigde_AVM_3",
-      "avg_discount_rate": 16.71,
-      "total_orders": 89516,
-      "avg_monthly_revenue": 2273558.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 7459,
-      "min_discount": 14.87,
-      "max_discount": 18.84,
-      "discount_volatility": 1.22
-    },
-    {
-      "store_name": "Hatay_Cadde_2",
-      "avg_discount_rate": 16.7,
-      "total_orders": 223957,
-      "avg_monthly_revenue": 5414034.33,
-      "months_of_data": 12,
-      "avg_orders_per_month": 18663,
-      "min_discount": 14.6,
-      "max_discount": 18.32,
-      "discount_volatility": 1.11
-    },
-    {
-      "store_name": "Burdur_AVM_2",
-      "avg_discount_rate": 16.29,
-      "total_orders": 129843,
-      "avg_monthly_revenue": 3262556.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10820,
-      "min_discount": 14.7,
-      "max_discount": 18.41,
-      "discount_volatility": 0.96
-    },
-    {
-      "store_name": "Batman_Cadde",
-      "avg_discount_rate": 16.28,
-      "total_orders": 185293,
-      "avg_monthly_revenue": 4256274.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 15441,
-      "min_discount": 14.86,
-      "max_discount": 19.1,
-      "discount_volatility": 1.26
-    },
-    {
-      "store_name": "Mardin_AVM",
-      "avg_discount_rate": 16.19,
-      "total_orders": 151425,
-      "avg_monthly_revenue": 4072890.5,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12618,
-      "min_discount": 13.67,
-      "max_discount": 18.42,
-      "discount_volatility": 1.66
-    },
-    {
-      "store_name": "Burdur_Cadde",
-      "avg_discount_rate": 16.15,
-      "total_orders": 173313,
-      "avg_monthly_revenue": 4746015.42,
-      "months_of_data": 12,
-      "avg_orders_per_month": 14442,
-      "min_discount": 14.1,
-      "max_discount": 18.45,
-      "discount_volatility": 1.42
-    },
-    {
-      "store_name": "Istanbul_Cadde_4",
-      "avg_discount_rate": 16.11,
-      "total_orders": 198307,
-      "avg_monthly_revenue": 4222654.42,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16525,
-      "min_discount": 13.3,
-      "max_discount": 20,
-      "discount_volatility": 2.3
-    },
-    {
-      "store_name": "Burdur_AVM_4",
-      "avg_discount_rate": 15.95,
-      "total_orders": 97730,
-      "avg_monthly_revenue": 2354026.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8144,
-      "min_discount": 13.32,
-      "max_discount": 17.7,
-      "discount_volatility": 1.35
-    },
-    {
-      "store_name": "Karaman_AVM",
-      "avg_discount_rate": 15.94,
-      "total_orders": 101038,
-      "avg_monthly_revenue": 2171774.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8419,
-      "min_discount": 13.89,
-      "max_discount": 18.18,
-      "discount_volatility": 1.49
-    },
-    {
-      "store_name": "Istanbul_Cadde_11",
-      "avg_discount_rate": 15.86,
-      "total_orders": 194789,
-      "avg_monthly_revenue": 4604956.75,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16232,
-      "min_discount": 13.45,
-      "max_discount": 17.77,
-      "discount_volatility": 1.5
-    },
-    {
-      "store_name": "Burdur_AVM_5",
-      "avg_discount_rate": 15.46,
-      "total_orders": 138449,
-      "avg_monthly_revenue": 2828947.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11537,
-      "min_discount": 13,
-      "max_discount": 18.43,
-      "discount_volatility": 1.88
-    },
-    {
-      "store_name": "Istanbul_AVM_18",
-      "avg_discount_rate": 15.4,
-      "total_orders": 149723,
-      "avg_monthly_revenue": 3561829,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12476,
-      "min_discount": 11.89,
-      "max_discount": 18.33,
-      "discount_volatility": 2.48
-    },
-    {
-      "store_name": "Istanbul_AVM_16",
-      "avg_discount_rate": 15.13,
-      "total_orders": 110703,
-      "avg_monthly_revenue": 2843138.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9225,
-      "min_discount": 12.92,
-      "max_discount": 16.72,
-      "discount_volatility": 1.16
-    },
-    {
-      "store_name": "Sivas_AVM_2",
-      "avg_discount_rate": 14.97,
-      "total_orders": 108448,
-      "avg_monthly_revenue": 2525968.5,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9037,
-      "min_discount": 12.65,
-      "max_discount": 17.69,
-      "discount_volatility": 1.36
-    },
-    {
-      "store_name": "Bilecik_AVM",
-      "avg_discount_rate": 14.63,
-      "total_orders": 51306,
-      "avg_monthly_revenue": 2253147.17,
-      "months_of_data": 6,
-      "avg_orders_per_month": 8551,
-      "min_discount": 12.71,
-      "max_discount": 16.01,
-      "discount_volatility": 1.09
-    },
-    {
-      "store_name": "Istanbul_AVM_17",
-      "avg_discount_rate": 14.62,
-      "total_orders": 125282,
-      "avg_monthly_revenue": 3224180.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10440,
-      "min_discount": 10.21,
-      "max_discount": 19.58,
-      "discount_volatility": 2.91
-    },
-    {
-      "store_name": "Kilis_Cadde",
-      "avg_discount_rate": 14.6,
-      "total_orders": 171992,
-      "avg_monthly_revenue": 3501461.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 14332,
-      "min_discount": 10.98,
-      "max_discount": 18.28,
-      "discount_volatility": 2.61
-    },
-    {
-      "store_name": "Kirikkale_Cadde",
-      "avg_discount_rate": 14.51,
-      "total_orders": 158234,
-      "avg_monthly_revenue": 4001814.5,
-      "months_of_data": 12,
-      "avg_orders_per_month": 13186,
-      "min_discount": 11.55,
-      "max_discount": 16.92,
-      "discount_volatility": 1.74
-    },
-    {
-      "store_name": "Aydin_Cadde",
-      "avg_discount_rate": 14.39,
-      "total_orders": 131390,
-      "avg_monthly_revenue": 3312200.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10949,
-      "min_discount": 12.17,
-      "max_discount": 17.92,
-      "discount_volatility": 1.49
-    },
-    {
-      "store_name": "Malatya_AVM",
-      "avg_discount_rate": 14.12,
-      "total_orders": 90420,
-      "avg_monthly_revenue": 1959174.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 7535,
-      "min_discount": 11.33,
-      "max_discount": 16.22,
-      "discount_volatility": 1.61
-    },
-    {
-      "store_name": "Istanbul_Cadde_14",
-      "avg_discount_rate": 14.09,
-      "total_orders": 204925,
-      "avg_monthly_revenue": 4457223.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 17077,
-      "min_discount": 12.01,
-      "max_discount": 15.62,
-      "discount_volatility": 1.14
-    },
-    {
-      "store_name": "Malatya_AVM_2",
-      "avg_discount_rate": 14.09,
-      "total_orders": 138294,
-      "avg_monthly_revenue": 3398700.33,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11524,
-      "min_discount": 11.1,
-      "max_discount": 16.3,
-      "discount_volatility": 1.41
-    },
-    {
-      "store_name": "Bingol_AVM",
-      "avg_discount_rate": 14.05,
-      "total_orders": 118911,
-      "avg_monthly_revenue": 2405922.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9909,
-      "min_discount": 11.56,
-      "max_discount": 16.37,
-      "discount_volatility": 1.51
-    },
-    {
-      "store_name": "Tunceli_Cadde",
-      "avg_discount_rate": 14.01,
-      "total_orders": 236900,
-      "avg_monthly_revenue": 5442695.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 19741,
-      "min_discount": 12.73,
-      "max_discount": 15.47,
-      "discount_volatility": 0.8
-    },
-    {
-      "store_name": "Istanbul_AVM_22",
-      "avg_discount_rate": 14,
-      "total_orders": 111508,
-      "avg_monthly_revenue": 2030338.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9292,
-      "min_discount": 11.58,
-      "max_discount": 17.46,
-      "discount_volatility": 2.17
-    },
-    {
-      "store_name": "Aksaray_AVM",
-      "avg_discount_rate": 13.77,
-      "total_orders": 113831,
-      "avg_monthly_revenue": 2193122.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9485,
-      "min_discount": 12.53,
-      "max_discount": 14.81,
-      "discount_volatility": 0.81
-    },
-    {
-      "store_name": "Istanbul_Cadde_7",
-      "avg_discount_rate": 13.71,
-      "total_orders": 166420,
-      "avg_monthly_revenue": 3831156.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 13868,
-      "min_discount": 11.41,
-      "max_discount": 16.55,
-      "discount_volatility": 1.48
-    },
-    {
       "store_name": "Tokat_Cadde",
-      "avg_discount_rate": 13.62,
-      "total_orders": 224716,
-      "avg_monthly_revenue": 5766048.42,
-      "months_of_data": 12,
-      "avg_orders_per_month": 18726,
-      "min_discount": 10.88,
-      "max_discount": 16.95,
-      "discount_volatility": 2.21
-    },
-    {
-      "store_name": "Istanbul_AVM_19",
-      "avg_discount_rate": 13.52,
-      "total_orders": 94782,
-      "avg_monthly_revenue": 1953227.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 7898,
-      "min_discount": 12.44,
-      "max_discount": 14.64,
-      "discount_volatility": 0.75
-    },
-    {
-      "store_name": "Sanliurfa_AVM",
-      "avg_discount_rate": 13.5,
-      "total_orders": 113873,
-      "avg_monthly_revenue": 2670216.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9489,
-      "min_discount": 11.86,
-      "max_discount": 16,
-      "discount_volatility": 1.39
-    },
-    {
-      "store_name": "Giresun_Cadde",
-      "avg_discount_rate": 13.48,
-      "total_orders": 187681,
-      "avg_monthly_revenue": 4953713.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 15640,
-      "min_discount": 12.1,
-      "max_discount": 14.86,
-      "discount_volatility": 0.93
-    },
-    {
-      "store_name": "Karaman_AVM_2",
-      "avg_discount_rate": 13.32,
-      "total_orders": 132921,
-      "avg_monthly_revenue": 3501751.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11076,
-      "min_discount": 9.81,
-      "max_discount": 15.46,
-      "discount_volatility": 1.68
-    },
-    {
-      "store_name": "Edirne_Cadde",
-      "avg_discount_rate": 13.3,
-      "total_orders": 193355,
-      "avg_monthly_revenue": 4037187.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16112,
-      "min_discount": 10.22,
-      "max_discount": 17.14,
-      "discount_volatility": 2.16
-    },
-    {
-      "store_name": "Sakarya_Cadde_3",
-      "avg_discount_rate": 13.25,
-      "total_orders": 114183,
-      "avg_monthly_revenue": 2310430.5,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9515,
-      "min_discount": 8.62,
-      "max_discount": 16.69,
-      "discount_volatility": 2.58
-    },
-    {
-      "store_name": "Mugla_Cadde_2",
-      "avg_discount_rate": 13.14,
-      "total_orders": 213295,
-      "avg_monthly_revenue": 5257277.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 17774,
-      "min_discount": 8.41,
-      "max_discount": 17.89,
-      "discount_volatility": 2.95
-    },
-    {
-      "store_name": "Sinop_AVM_2",
-      "avg_discount_rate": 13.13,
-      "total_orders": 106967,
-      "avg_monthly_revenue": 2617822.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8913,
-      "min_discount": 11.31,
-      "max_discount": 15.19,
-      "discount_volatility": 1.25
-    },
-    {
-      "store_name": "Gaziantep_AVM_3",
-      "avg_discount_rate": 13.12,
-      "total_orders": 95384,
-      "avg_monthly_revenue": 2112642.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 7948,
-      "min_discount": 10.31,
-      "max_discount": 16.46,
-      "discount_volatility": 1.69
-    },
-    {
-      "store_name": "Usak_Cadde",
-      "avg_discount_rate": 13.11,
-      "total_orders": 188542,
-      "avg_monthly_revenue": 4887154.42,
-      "months_of_data": 12,
-      "avg_orders_per_month": 15711,
-      "min_discount": 10.43,
-      "max_discount": 14.53,
-      "discount_volatility": 1.28
-    },
-    {
-      "store_name": "Ordu_Cadde",
-      "avg_discount_rate": 13.1,
-      "total_orders": 180464,
-      "avg_monthly_revenue": 3738025.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 15038,
-      "min_discount": 8.27,
-      "max_discount": 16.07,
-      "discount_volatility": 2.84
-    },
-    {
-      "store_name": "Kocaeli_Cadde",
-      "avg_discount_rate": 13.02,
-      "total_orders": 154246,
-      "avg_monthly_revenue": 3227566.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12853,
-      "min_discount": 11.16,
-      "max_discount": 15.97,
-      "discount_volatility": 1.36
-    },
-    {
-      "store_name": "Konya_AVM",
-      "avg_discount_rate": 13,
-      "total_orders": 150286,
-      "avg_monthly_revenue": 2998405.33,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12523,
-      "min_discount": 10.62,
-      "max_discount": 15.94,
-      "discount_volatility": 1.58
-    },
-    {
-      "store_name": "Istanbul_Cadde_5",
-      "avg_discount_rate": 12.97,
-      "total_orders": 212730,
-      "avg_monthly_revenue": 4237938.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 17727,
-      "min_discount": 10.98,
-      "max_discount": 14.75,
-      "discount_volatility": 1.22
-    },
-    {
-      "store_name": "Antalya_Cadde_2",
-      "avg_discount_rate": 12.96,
-      "total_orders": 217413,
-      "avg_monthly_revenue": 4628048.42,
-      "months_of_data": 12,
-      "avg_orders_per_month": 18117,
-      "min_discount": 10.62,
-      "max_discount": 15.54,
-      "discount_volatility": 1.5
-    },
-    {
-      "store_name": "Edirne_AVM",
-      "avg_discount_rate": 12.95,
-      "total_orders": 96430,
-      "avg_monthly_revenue": 1970563.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8035,
-      "min_discount": 8.48,
-      "max_discount": 17.27,
-      "discount_volatility": 2.52
-    },
-    {
-      "store_name": "Hatay_AVM_2",
-      "avg_discount_rate": 12.84,
-      "total_orders": 113530,
-      "avg_monthly_revenue": 2909322,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9460,
-      "min_discount": 11.54,
-      "max_discount": 14.21,
-      "discount_volatility": 0.8
-    },
-    {
-      "store_name": "Istanbul_AVM_13",
-      "avg_discount_rate": 12.79,
-      "total_orders": 98076,
-      "avg_monthly_revenue": 2265561,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8173,
-      "min_discount": 10.87,
-      "max_discount": 13.71,
-      "discount_volatility": 0.88
-    },
-    {
-      "store_name": "Sanliurfa_Cadde_3",
-      "avg_discount_rate": 12.79,
-      "total_orders": 162395,
-      "avg_monthly_revenue": 3789085.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 13532,
-      "min_discount": 10.73,
-      "max_discount": 14.31,
-      "discount_volatility": 1.2
+      "total_revenue": 69192581
     },
     {
       "store_name": "Kars_Cadde",
-      "avg_discount_rate": 12.78,
-      "total_orders": 228809,
-      "avg_monthly_revenue": 5491564.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 19067,
-      "min_discount": 7.36,
-      "max_discount": 15.41,
-      "discount_volatility": 2.41
+      "total_revenue": 65898779
     },
     {
-      "store_name": "Van_AVM",
-      "avg_discount_rate": 12.74,
-      "total_orders": 159056,
-      "avg_monthly_revenue": 3479563.5,
-      "months_of_data": 12,
-      "avg_orders_per_month": 13254,
-      "min_discount": 9.46,
-      "max_discount": 14.74,
-      "discount_volatility": 1.56
+      "store_name": "Sakarya_Cadde_2",
+      "total_revenue": 65780606
     },
     {
-      "store_name": "Edirne_AVM_3",
-      "avg_discount_rate": 12.71,
-      "total_orders": 131233,
-      "avg_monthly_revenue": 3110956.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10936,
-      "min_discount": 10.04,
-      "max_discount": 15.01,
-      "discount_volatility": 1.4
+      "store_name": "Tunceli_Cadde",
+      "total_revenue": 65312350
     },
     {
-      "store_name": "Denizli_AVM_4",
-      "avg_discount_rate": 12.66,
-      "total_orders": 113773,
-      "avg_monthly_revenue": 2604210.42,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9481,
-      "min_discount": 7.67,
-      "max_discount": 15.99,
-      "discount_volatility": 2.41
+      "store_name": "Hatay_Cadde_2",
+      "total_revenue": 64968412
     },
     {
-      "store_name": "Elazig_Cadde",
-      "avg_discount_rate": 12.63,
-      "total_orders": 199634,
-      "avg_monthly_revenue": 4147600.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16636,
-      "min_discount": 10.73,
-      "max_discount": 13.73,
-      "discount_volatility": 0.88
-    },
-    {
-      "store_name": "Isparta_Cadde",
-      "avg_discount_rate": 12.6,
-      "total_orders": 129542,
-      "avg_monthly_revenue": 3100461.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10795,
-      "min_discount": 10.96,
-      "max_discount": 14.62,
-      "discount_volatility": 1.03
-    },
-    {
-      "store_name": "Erzurum_Cadde_3",
-      "avg_discount_rate": 12.58,
-      "total_orders": 131364,
-      "avg_monthly_revenue": 3269817.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10947,
-      "min_discount": 11.2,
-      "max_discount": 13.99,
-      "discount_volatility": 0.85
-    },
-    {
-      "store_name": "Kars_AVM",
-      "avg_discount_rate": 12.46,
-      "total_orders": 119819,
-      "avg_monthly_revenue": 2524240.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9984,
-      "min_discount": 11.11,
-      "max_discount": 13.53,
-      "discount_volatility": 0.82
-    },
-    {
-      "store_name": "Istanbul_AVM_20",
-      "avg_discount_rate": 12.45,
-      "total_orders": 132603,
-      "avg_monthly_revenue": 2811822.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11050,
-      "min_discount": 8.57,
-      "max_discount": 16,
-      "discount_volatility": 2.62
-    },
-    {
-      "store_name": "Diyarbakir_AVM",
-      "avg_discount_rate": 12.39,
-      "total_orders": 97585,
-      "avg_monthly_revenue": 2007981.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8132,
-      "min_discount": 9.39,
-      "max_discount": 15.27,
-      "discount_volatility": 1.72
-    },
-    {
-      "store_name": "Igdir_AVM",
-      "avg_discount_rate": 12.34,
-      "total_orders": 106925,
-      "avg_monthly_revenue": 2638537.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8910,
-      "min_discount": 10.16,
-      "max_discount": 14.45,
-      "discount_volatility": 1.43
-    },
-    {
-      "store_name": "Kirklareli_AVM",
-      "avg_discount_rate": 12.17,
-      "total_orders": 119075,
-      "avg_monthly_revenue": 3192274.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9922,
-      "min_discount": 10.43,
-      "max_discount": 14.02,
-      "discount_volatility": 1.1
-    },
-    {
-      "store_name": "Kutahya_Cadde",
-      "avg_discount_rate": 12.11,
-      "total_orders": 213330,
-      "avg_monthly_revenue": 4025719.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 17777,
-      "min_discount": 10.16,
-      "max_discount": 14.54,
-      "discount_volatility": 1.52
-    },
-    {
-      "store_name": "Sanliurfa_Cadde_4",
-      "avg_discount_rate": 12.03,
-      "total_orders": 184918,
-      "avg_monthly_revenue": 4603496.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 15409,
-      "min_discount": 8.94,
-      "max_discount": 13.96,
-      "discount_volatility": 1.55
-    },
-    {
-      "store_name": "Usak_AVM",
-      "avg_discount_rate": 12.02,
-      "total_orders": 98910,
-      "avg_monthly_revenue": 2381564.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8242,
-      "min_discount": 10.29,
-      "max_discount": 13.83,
-      "discount_volatility": 1.02
-    },
-    {
-      "store_name": "Agri_Cadde",
-      "avg_discount_rate": 12,
-      "total_orders": 183490,
-      "avg_monthly_revenue": 4126498.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 15290,
-      "min_discount": 8.87,
-      "max_discount": 14.05,
-      "discount_volatility": 1.73
-    },
-    {
-      "store_name": "Bingol_AVM_2",
-      "avg_discount_rate": 12,
-      "total_orders": 120261,
-      "avg_monthly_revenue": 2615341.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10021,
-      "min_discount": 9.72,
-      "max_discount": 14.45,
-      "discount_volatility": 1.43
-    },
-    {
-      "store_name": "Istanbul_AVM_8",
-      "avg_discount_rate": 11.89,
-      "total_orders": 152567,
-      "avg_monthly_revenue": 3411659.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12713,
-      "min_discount": 10.25,
-      "max_discount": 13.25,
-      "discount_volatility": 0.89
-    },
-    {
-      "store_name": "Karaman_Cadde",
-      "avg_discount_rate": 11.74,
-      "total_orders": 217071,
-      "avg_monthly_revenue": 4758245.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 18089,
-      "min_discount": 8.18,
-      "max_discount": 15.16,
-      "discount_volatility": 2.54
-    },
-    {
-      "store_name": "Isparta_AVM",
-      "avg_discount_rate": 11.68,
-      "total_orders": 110408,
-      "avg_monthly_revenue": 2162219.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9200,
-      "min_discount": 7.49,
-      "max_discount": 15.13,
-      "discount_volatility": 2.65
-    },
-    {
-      "store_name": "Edirne_AVM_2",
-      "avg_discount_rate": 11.55,
-      "total_orders": 154195,
-      "avg_monthly_revenue": 3125514.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12849,
-      "min_discount": 9.86,
-      "max_discount": 13.81,
-      "discount_volatility": 1.25
-    },
-    {
-      "store_name": "Denizli_AVM_3",
-      "avg_discount_rate": 11.53,
-      "total_orders": 124595,
-      "avg_monthly_revenue": 2833165.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10382,
-      "min_discount": 10.09,
-      "max_discount": 12.84,
-      "discount_volatility": 0.94
-    },
-    {
-      "store_name": "Sivas_AVM",
-      "avg_discount_rate": 11.45,
-      "total_orders": 137885,
-      "avg_monthly_revenue": 3428981.33,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11490,
-      "min_discount": 7.46,
-      "max_discount": 14.84,
-      "discount_volatility": 2.48
-    },
-    {
-      "store_name": "Istanbul_AVM_2",
-      "avg_discount_rate": 11.35,
-      "total_orders": 108217,
-      "avg_monthly_revenue": 2080220.5,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9018,
-      "min_discount": 9.23,
-      "max_discount": 13.04,
-      "discount_volatility": 1.04
-    },
-    {
-      "store_name": "Istanbul_AVM_26",
-      "avg_discount_rate": 11.23,
-      "total_orders": 120524,
-      "avg_monthly_revenue": 2792768.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10043,
-      "min_discount": 9.05,
-      "max_discount": 12.92,
-      "discount_volatility": 1.22
-    },
-    {
-      "store_name": "Artvin_Cadde",
-      "avg_discount_rate": 11.21,
-      "total_orders": 197791,
-      "avg_monthly_revenue": 4957503,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16482,
-      "min_discount": 9.46,
-      "max_discount": 13.04,
-      "discount_volatility": 1.16
-    },
-    {
-      "store_name": "Yozgat_AVM",
-      "avg_discount_rate": 11.08,
-      "total_orders": 106879,
-      "avg_monthly_revenue": 2591744.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8906,
-      "min_discount": 8.99,
-      "max_discount": 13.73,
-      "discount_volatility": 1.53
-    },
-    {
-      "store_name": "Aydin_AVM_2",
-      "avg_discount_rate": 11.06,
-      "total_orders": 111038,
-      "avg_monthly_revenue": 2154108.75,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9253,
-      "min_discount": 9.13,
-      "max_discount": 15.87,
-      "discount_volatility": 2.06
-    },
-    {
-      "store_name": "Ankara_AVM",
-      "avg_discount_rate": 10.99,
-      "total_orders": 115942,
-      "avg_monthly_revenue": 2604292.58,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9661,
-      "min_discount": 8.49,
-      "max_discount": 12.47,
-      "discount_volatility": 1
-    },
-    {
-      "store_name": "Bolu_AVM",
-      "avg_discount_rate": 10.72,
-      "total_orders": 99781,
-      "avg_monthly_revenue": 2482445.33,
-      "months_of_data": 12,
-      "avg_orders_per_month": 8315,
-      "min_discount": 8.84,
-      "max_discount": 12.27,
-      "discount_volatility": 1.02
-    },
-    {
-      "store_name": "Istanbul_Cadde_9",
-      "avg_discount_rate": 10.66,
-      "total_orders": 154787,
-      "avg_monthly_revenue": 3622721.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12898,
-      "min_discount": 6.65,
-      "max_discount": 14.2,
-      "discount_volatility": 2.72
-    },
-    {
-      "store_name": "Istanbul_AVM",
-      "avg_discount_rate": 10.66,
-      "total_orders": 108846,
-      "avg_monthly_revenue": 2718527.67,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9070,
-      "min_discount": 8.93,
-      "max_discount": 12.78,
-      "discount_volatility": 1.22
-    },
-    {
-      "store_name": "Siirt_Cadde_2",
-      "avg_discount_rate": 10.44,
-      "total_orders": 149565,
-      "avg_monthly_revenue": 3552224.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12463,
-      "min_discount": 6.89,
-      "max_discount": 13.07,
-      "discount_volatility": 1.57
-    },
-    {
-      "store_name": "Afyonkarahisar_AVM",
-      "avg_discount_rate": 10.4,
-      "total_orders": 92210,
-      "avg_monthly_revenue": 2255359.75,
-      "months_of_data": 12,
-      "avg_orders_per_month": 7684,
-      "min_discount": 8.85,
-      "max_discount": 12.46,
-      "discount_volatility": 1.3
-    },
-    {
-      "store_name": "Gumushane_Cadde",
-      "avg_discount_rate": 10.4,
-      "total_orders": 168779,
-      "avg_monthly_revenue": 3563434.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 14064,
-      "min_discount": 6.48,
-      "max_discount": 13.04,
-      "discount_volatility": 1.99
-    },
-    {
-      "store_name": "Nevsehir_Cadde",
-      "avg_discount_rate": 10.27,
-      "total_orders": 223399,
-      "avg_monthly_revenue": 4374561.75,
-      "months_of_data": 12,
-      "avg_orders_per_month": 18616,
-      "min_discount": 6.84,
-      "max_discount": 12.76,
-      "discount_volatility": 1.98
-    },
-    {
-      "store_name": "Burdur_AVM_6",
-      "avg_discount_rate": 10.22,
-      "total_orders": 134273,
-      "avg_monthly_revenue": 3196603.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11189,
-      "min_discount": 7.45,
-      "max_discount": 12.48,
-      "discount_volatility": 1.77
-    },
-    {
-      "store_name": "Nigde_AVM",
-      "avg_discount_rate": 10.08,
-      "total_orders": 132345,
-      "avg_monthly_revenue": 2519015.83,
-      "months_of_data": 12,
-      "avg_orders_per_month": 11028,
-      "min_discount": 9.22,
-      "max_discount": 11.36,
-      "discount_volatility": 0.7
-    },
-    {
-      "store_name": "Sinop_Cadde_2",
-      "avg_discount_rate": 10.05,
-      "total_orders": 171714,
-      "avg_monthly_revenue": 4675882.92,
-      "months_of_data": 12,
-      "avg_orders_per_month": 14309,
-      "min_discount": 5.94,
-      "max_discount": 14.39,
-      "discount_volatility": 3.01
-    },
-    {
-      "store_name": "Istanbul_AVM_6",
-      "avg_discount_rate": 10.01,
-      "total_orders": 111470,
-      "avg_monthly_revenue": 2871502.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 9289,
-      "min_discount": 6.75,
-      "max_discount": 12.98,
-      "discount_volatility": 2.05
-    },
-    {
-      "store_name": "Afyonkarahisar_Cadde",
-      "avg_discount_rate": 10.01,
-      "total_orders": 146231,
-      "avg_monthly_revenue": 3396153.08,
-      "months_of_data": 12,
-      "avg_orders_per_month": 12185,
-      "min_discount": 7.93,
-      "max_discount": 12.59,
-      "discount_volatility": 1.67
-    },
-    {
-      "store_name": "Artvin_AVM",
-      "avg_discount_rate": 9.96,
-      "total_orders": 127487,
-      "avg_monthly_revenue": 2552236,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10623,
-      "min_discount": 4.78,
-      "max_discount": 15.09,
-      "discount_volatility": 3.92
-    },
-    {
-      "store_name": "Ankara_Cadde",
-      "avg_discount_rate": 9.93,
-      "total_orders": 203617,
-      "avg_monthly_revenue": 4732059.75,
-      "months_of_data": 12,
-      "avg_orders_per_month": 16968,
-      "min_discount": 7.92,
-      "max_discount": 11.15,
-      "discount_volatility": 0.98
+      "store_name": "Hakkari_Cadde",
+      "total_revenue": 64494761
     },
     {
       "store_name": "Istanbul_Cadde_3",
-      "avg_discount_rate": 9.88,
-      "total_orders": 255428,
-      "avg_monthly_revenue": 5287397.25,
-      "months_of_data": 12,
-      "avg_orders_per_month": 21285,
-      "min_discount": 7.28,
-      "max_discount": 12.47,
-      "discount_volatility": 1.7
+      "total_revenue": 63448767
     },
     {
-      "store_name": "Osmaniye_AVM_2",
-      "avg_discount_rate": 9.85,
-      "total_orders": 128320,
-      "avg_monthly_revenue": 2892265.17,
-      "months_of_data": 12,
-      "avg_orders_per_month": 10693,
-      "min_discount": 7.68,
-      "max_discount": 11.69,
-      "discount_volatility": 1.52
+      "store_name": "Ardahan_Cadde",
+      "total_revenue": 63158171
+    },
+    {
+      "store_name": "Mugla_Cadde_2",
+      "total_revenue": 63087334
+    },
+    {
+      "store_name": "Istanbul_Cadde_8",
+      "total_revenue": 61023550
     }
   ],
-  "lastSQL": "SELECT \n    store_name,\n    ROUND(AVG(avg_discount_percent_per_order), 2) as avg_discount_rate,\n    SUM(order_month) as total_orders,\n    ROUND(AVG(net_revenue_tl_month), 2) as avg_monthly_revenue,\n    COUNT(*) as months_of_data,\n    ROUND(SUM(order_month) / COUNT(*), 2) as avg_orders_per_month,\n    ROUND(MIN(avg_discount_percent_per_order), 2) as min_discount,\n    ROUND(MAX(avg_discount_percent_per_order), 2) as max_discount,\n    ROUND(STDDEV(avg_discount_percent_per_order), 2) as discount_volatility\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nHAVING COUNT(*) >= 6 AND STDDEV(avg_discount_percent_per_order) > 0\nORDER BY avg_discount_rate DESC\nLIMIT 100"
+  "lastSQL": "SELECT store_name, SUM(net_revenue_tl_month) as total_revenue\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY total_revenue DESC\nLIMIT 10"
 }
