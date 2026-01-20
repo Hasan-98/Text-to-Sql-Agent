@@ -60,7 +60,7 @@ function App() {
       fetchHistory();
     } catch (err) {
       console.error("Chat Error:", err);
-      setMessages(prev => [...prev, { role: 'agent', text: "Sorry, I encountered an error. Please check if the backend is running.", error: true }]);
+      setMessages(prev => [...prev, { role: 'agent', finalAnswer: "Sorry, I encountered an error. Please check if the backend is running.", error: true }]);
     } finally {
       setIsLoading(false);
     }
@@ -78,7 +78,6 @@ function App() {
   };
 
   const handleHistoryClick = (item) => {
-    // Reconstruct the message from history item
     const historicalMessages = [
       { role: 'user', text: item.userQuery, timestamp: item.timestamp },
       {
@@ -87,6 +86,8 @@ function App() {
         finalAnswer: item.finalAnswer,
         queryResult: item.results,
         generatedTasks: item.generatedTasks,
+        kpiAnalysis: item.kpiAnalysis, // Include KPI/RootCause if they were saved (though history.results usually just has data)
+        rootCauseAnalysis: item.rootCauseAnalysis,
         sqlQuery: item.sqlQuery
       }
     ];
@@ -112,6 +113,16 @@ function App() {
     }));
   };
 
+  const getHealthEmoji = (status) => {
+    switch (status) {
+      case 'Critical': return '🔴';
+      case 'Warning': return '🟡';
+      case 'Good': return '🟢';
+      case 'Excellent': return '🌟';
+      default: return '⚪';
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Sidebar */}
@@ -135,17 +146,51 @@ function App() {
         <div className="chat-window">
           {messages.length === 0 && (
             <div className="welcome-screen">
-              <h2>Welcome Back!</h2>
+              <h2>Welcome to Store Analytics</h2>
               <p>Ask anything about your store metrics, revenue, or efficiency.</p>
+              <div className="example-queries">
+                <div className="query-chip" onClick={() => setInput("Show me top 5 malls by revenue this month")}>"Top 5 malls by revenue"</div>
+                <div className="query-chip" onClick={() => setInput("Which stores have critical efficiency?")}>"Critical efficiency stores"</div>
+              </div>
             </div>
           )}
           {messages.map((msg, idx) => (
-            <div key={idx} className={`message ${msg.role}`}>
+            <div key={idx} className={`message ${msg.role} ${msg.error ? 'error' : ''}`}>
               {msg.role === 'user' ? (
                 <div>{msg.text}</div>
               ) : (
                 <div className="agent-response">
-                  <p>{msg.finalAnswer}</p>
+                  <p className="final-answer">{msg.finalAnswer}</p>
+
+                  {/* KPI Analysis Card */}
+                  {msg.kpiAnalysis && (
+                    <div className="kpi-card">
+                      <div className="card-header">
+                        <span>{getHealthEmoji(msg.kpiAnalysis.healthStatus)} KPI Health: {msg.kpiAnalysis.healthStatus}</span>
+                        <span className="score">Score: {msg.kpiAnalysis.overallScore}/100</span>
+                      </div>
+                      <div className="kpi-findings">
+                        {msg.kpiAnalysis.keyFindings?.map((f, i) => (
+                          <div key={i} className="finding-item">• {f}</div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Root Cause Analysis Card */}
+                  {msg.rootCauseAnalysis && (
+                    <div className="root-cause-card">
+                      <div className="card-header">🔍 Root Cause Investigation</div>
+                      <div className="causes-list">
+                        {msg.rootCauseAnalysis.primaryCauses?.map((cause, i) => (
+                          <div key={i} className="cause-item">
+                            <span className={`impact-badge ${cause.impact}`}>{cause.impact}</span>
+                            <strong>{cause.factor}:</strong> {cause.description}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {msg.queryResult && msg.queryResult.length > 0 && (
                     <div className="table-container">
@@ -176,14 +221,18 @@ function App() {
 
                   {msg.generatedTasks && msg.generatedTasks.tasks && (
                     <div className="tasks-container">
-                      <strong>Suggested Actions:</strong>
+                      <div className="section-title">📋 Action Tasks</div>
                       {msg.generatedTasks.tasks.map(task => (
                         <div key={task.id} className="task-item">
-                          <div><strong>{task.title}</strong></div>
-                          <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>{task.description}</div>
+                          <div className="task-header">
+                            <span className={`priority-tag ${task.priority}`}>{task.priority}</span>
+                            <strong>{task.title}</strong>
+                          </div>
+                          <div className="task-desc">{task.description}</div>
+                          <div className="task-meta">Assigned to: {task.assignedTo} | Deadline: {task.deadline}</div>
                           <div className="task-actions">
-                            <button className="btn-ok" onClick={() => handleTaskAction(task.id, 'approved')}>OK</button>
-                            <button className="btn-reject" onClick={() => handleTaskAction(task.id, 'rejected')}>Reject</button>
+                            <button className="btn-ok" onClick={() => handleTaskAction(task.id, 'approved')}>Approve</button>
+                            <button className="btn-reject" onClick={() => handleTaskAction(task.id, 'rejected')}>Ignore</button>
                           </div>
                         </div>
                       ))}

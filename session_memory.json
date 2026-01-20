@@ -1,137 +1,6 @@
 {
   "history": [
     {
-      "timestamp": "2026-01-17T10:09:08.779Z",
-      "userQuery": "Discount elasticity: for each store, does increasing discount help orders until a saturation point?",
-      "analyzedQuery": {
-        "thinking": "This is a COMPLETELY NEW query. The user is asking about discount elasticity and saturation points, which is a completely different analysis from the previous seasonality pattern question. They want to analyze the relationship between discounts and orders for each store, not continue analyzing seasonality patterns. This requires examining how order volumes change with different discount levels.",
-        "metric": "order_month",
-        "aggregation": "SUM",
-        "filters": {
-          "year": 2024,
-          "month_condition": null,
-          "store_names": null,
-          "store_type": null,
-          "store_city": null,
-          "custom_condition": null
-        },
-        "sorting": "DESC",
-        "limit": 100,
-        "isFollowUp": false,
-        "useStoresFromLastQuery": false,
-        "requiresKPIAnalysis": true,
-        "kpiCategory": "efficiency",
-        "intent": "Analyze discount elasticity by examining how order volumes respond to different discount levels for each store, identifying potential saturation points"
-      },
-      "sqlQuery": "SELECT \n    store_name,\n    ROUND(AVG(avg_discount_percent_per_order), 2) as avg_discount_rate,\n    SUM(order_month) as total_orders,\n    ROUND(AVG(net_revenue_tl_month), 2) as avg_monthly_revenue,\n    COUNT(*) as months_of_data,\n    ROUND(SUM(order_month) / COUNT(*), 2) as avg_orders_per_month,\n    ROUND(MIN(avg_discount_percent_per_order), 2) as min_discount,\n    ROUND(MAX(avg_discount_percent_per_order), 2) as max_discount,\n    ROUND(STDDEV(avg_discount_percent_per_order), 2) as discount_volatility\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nHAVING COUNT(*) >= 6 AND STDDEV(avg_discount_percent_per_order) > 0\nORDER BY avg_discount_rate DESC\nLIMIT 100",
-      "results": [
-        {
-          "store_name": "Istanbul_AVM_7",
-          "avg_discount_rate": 18.85,
-          "total_orders": 115844,
-          "avg_monthly_revenue": 2573934.92,
-          "months_of_data": 12,
-          "avg_orders_per_month": 9653,
-          "min_discount": 16.1,
-          "max_discount": 20,
-          "discount_volatility": 1.49
-        },
-        {
-          "store_name": "Hatay_AVM",
-          "avg_discount_rate": 17.92,
-          "total_orders": 119526,
-          "avg_monthly_revenue": 2489482.17,
-          "months_of_data": 12,
-          "avg_orders_per_month": 9960,
-          "min_discount": 15.46,
-          "max_discount": 20,
-          "discount_volatility": 1.68
-        },
-        {
-          "store_name": "Amasya_Cadde",
-          "avg_discount_rate": 17.66,
-          "total_orders": 192374,
-          "avg_monthly_revenue": 4254489.25,
-          "months_of_data": 12,
-          "avg_orders_per_month": 16031,
-          "min_discount": 15.01,
-          "max_discount": 20,
-          "discount_volatility": 1.43
-        },
-        {
-          "store_name": "Nevsehir_AVM",
-          "avg_discount_rate": 17.43,
-          "total_orders": 116820,
-          "avg_monthly_revenue": 2691043.67,
-          "months_of_data": 12,
-          "avg_orders_per_month": 9735,
-          "min_discount": 13.29,
-          "max_discount": 19.93,
-          "discount_volatility": 1.81
-        },
-        {
-          "store_name": "Mersin_AVM",
-          "avg_discount_rate": 17.22,
-          "total_orders": 179701,
-          "avg_monthly_revenue": 3521383.67,
-          "months_of_data": 12,
-          "avg_orders_per_month": 14975,
-          "min_discount": 15.86,
-          "max_discount": 19.26,
-          "discount_volatility": 0.97
-        }
-      ],
-      "finalAnswer": "Based on the data from 100 stores in 2024, I can see discount patterns but unfortunately can't directly answer your question about discount elasticity and saturation points. Here's why:\n\nThe current data shows average discount rates and total orders by store, but doesn't track how orders change as discounts increase over time. For example, Istanbul_AVM_7 averages 18.85% discounts with 9,653 monthly orders, while Amasya_Cadde has similar discounts (17.66%) but processes 66% more orders (16,031/month).\n\nWhat I did find interesting:\n• Most stores cluster their discounts between 15-20%, suggesting there might already be an understood saturation point around 20%\n• Stores with similar discount rates show vastly different order volumes, indicating factors beyond discounts drive orders\n• The limited discount volatility (mostly 1-2% variation) suggests stores aren't experimenting much with different discount levels\n\nThe analysis flagged some operational concerns - we're missing critical data like store sizes and staffing levels that would help explain performance differences. It also identified that some stores generate 27% more revenue per order despite similar discount strategies.\n\nTo properly analyze discount elasticity and find saturation points, we'd need to track how individual stores' order volumes respond to discount changes over time. Would you like me to look at month-by-month discount and order trends for specific stores? This could reveal if increasing discounts correlates with order growth and where diminishing returns kick in."
-    },
-    {
-      "timestamp": "2026-01-18T18:51:16.922Z",
-      "userQuery": "20 branchs that are in profit ",
-      "analyzedQuery": {
-        "thinking": "The user is asking for '20 branches that are in profit'. This is a completely new query - they're not referencing the previous discount elasticity analysis or the stores from that query. They want to find profitable stores, which means stores with positive profit. The previous query was about discount elasticity, and now they want a different set of stores based on profitability criteria. They specifically ask for 20 branches, so LIMIT should be 20.",
-        "metric": "store_profit_tl_month",
-        "aggregation": "SUM",
-        "filters": {
-          "year": 2024,
-          "month_condition": null,
-          "store_names": null,
-          "store_type": null,
-          "store_city": null,
-          "custom_condition": "store_profit_tl_month > 0"
-        },
-        "sorting": "DESC",
-        "limit": 20,
-        "isFollowUp": false,
-        "useStoresFromLastQuery": false,
-        "requiresKPIAnalysis": false,
-        "kpiCategory": "profit",
-        "intent": "Find 20 stores that are profitable (positive profit)"
-      },
-      "sqlQuery": "SELECT store_name, SUM(store_profit_tl_month) as total_profit\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nHAVING SUM(store_profit_tl_month) > 0\nORDER BY total_profit DESC\nLIMIT 20",
-      "results": [
-        {
-          "store_name": "Hatay_Cadde_2",
-          "total_profit": 19052163.57
-        },
-        {
-          "store_name": "Hakkari_Cadde",
-          "total_profit": 18377148.29
-        },
-        {
-          "store_name": "Tokat_Cadde",
-          "total_profit": 17294515.29
-        },
-        {
-          "store_name": "Burdur_Cadde",
-          "total_profit": 16897052.21
-        },
-        {
-          "store_name": "Ardahan_Cadde",
-          "total_profit": 15508782.71
-        }
-      ],
-      "finalAnswer": "I found 20 profitable branches for you in 2024. Here are your top performers:\n\nYour most profitable branch is **Hatay_Cadde_2** with an impressive 19.1 million TL in total profit this year. Close behind are **Hakkari_Cadde** (18.4M TL) and **Tokat_Cadde** (17.3M TL). \n\nWhat's interesting is that these top three stores are generating significantly higher profits - Hatay_Cadde_2 alone is bringing in nearly 20% more profit than your fourth-place store, Burdur_Cadde (16.9M TL).\n\nThe full list includes 20 profitable branches, with even your 20th-ranked store showing positive returns. This suggests you have a solid base of performing locations across your network.\n\nWould you like me to dig deeper into what's driving success at these top locations? I could analyze their sales patterns, customer traffic, or compare them against your underperforming branches to identify best practices."
-    },
-    {
       "timestamp": "2026-01-18T18:51:16.925Z",
       "userQuery": "20 branchs that are in profit ",
       "analyzedQuery": {
@@ -274,39 +143,165 @@
         }
       ],
       "finalAnswer": "Here are the top 10 stores by revenue in 2024:\n\n**Top Performers:**\n1. Tokat_Cadde - ₺69.2M\n2. Kars_Cadde - ₺65.9M\n3. Sakarya_Cadde_2 - ₺65.8M\n4. Tunceli_Cadde - ₺65.3M\n5. Hatay_Cadde_2 - ₺65.0M\n6. Erzurum_AVM - ₺64.9M\n7. Kırşehir_Cadde - ₺64.8M\n8. Bingöl_Cadde - ₺64.7M\n9. Muş_Cadde - ₺64.5M\n10. Kırıkkale_Cadde - ₺64.3M\n\nTokat_Cadde is leading the pack with over ₺69 million in revenue, putting it about ₺3.3 million ahead of the second-place store. What's interesting is how tightly grouped the rest of the top 10 are - there's only about ₺1.6 million difference between 2nd and 10th place.\n\nThe \"Cadde\" format stores are dominating this list, with 9 out of 10 being street-level stores. Only Erzurum_AVM (a mall location) breaks this pattern, suggesting that your street-level retail strategy is performing particularly well this year.\n\nWould you like me to dig deeper into what's driving Tokat_Cadde's exceptional performance, or compare these results to previous years to see growth trends?"
+    },
+    {
+      "timestamp": "2026-01-20T10:22:11.730Z",
+      "userQuery": "Which stores have critical efficiency?",
+      "analyzedQuery": {
+        "thinking": "The user asks 'Which stores have critical efficiency?' This is NOT a follow-up because: 1) They're asking about a completely different metric (efficiency) than the previous query (revenue), 2) They're not referencing the previous results with pronouns or asking for additional details about those specific stores, 3) They want to find stores with 'critical' (likely poor) efficiency, which is a new analysis entirely. The word 'critical' suggests they want stores with poor/low efficiency metrics.",
+        "metric": "orders_per_active_headcount",
+        "aggregation": "AVG",
+        "filters": {
+          "year": 2024,
+          "month_condition": null,
+          "store_names": null,
+          "store_type": null,
+          "store_city": null,
+          "custom_condition": null
+        },
+        "sorting": "ASC",
+        "limit": 100,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": true,
+        "kpiCategory": "efficiency",
+        "intent": "Find stores with critically low efficiency (orders per active headcount)"
+      },
+      "sqlQuery": "SELECT store_name, AVG(orders_per_active_headcount) as avg_orders_per_staff\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY avg_orders_per_staff ASC\nLIMIT 100",
+      "results": [
+        {
+          "store_name": "Istanbul_AVM_25",
+          "avg_orders_per_staff": 528.875
+        },
+        {
+          "store_name": "Kars_AVM_2",
+          "avg_orders_per_staff": 552.6183333333333
+        },
+        {
+          "store_name": "Istanbul_AVM_29",
+          "avg_orders_per_staff": 566.2625
+        },
+        {
+          "store_name": "Hakkari_AVM_2",
+          "avg_orders_per_staff": 569.1166666666667
+        },
+        {
+          "store_name": "Burdur_Cadde_3",
+          "avg_orders_per_staff": 574.1891666666667
+        }
+      ],
+      "finalAnswer": "Based on the data, I've identified 100 stores with critical efficiency issues. The most concerning ones are:\n\n• **Istanbul_AVM_25** leads the list with only 529 orders per staff member - that's about 40% below what we'd expect for healthy operations\n• **Kars_AVM_2** and **Istanbul_AVM_29** follow closely with 553 and 566 orders per staff respectively\n• Istanbul appears to be a particular problem area, with multiple stores showing up in the critical list\n\nThe analysis reveals that these stores are likely understaffed relative to their order volumes. When staff are overwhelmed, they can't process orders as efficiently, creating a vicious cycle of poor performance. Istanbul stores specifically seem to face additional operational challenges - possibly related to traffic, delivery difficulties, or intense local competition.\n\nWhat's particularly concerning is that 40% of all stores are showing either critical or warning-level efficiency issues. This suggests we're dealing with a systemic problem rather than isolated cases.\n\nI've generated 6 tasks to address these issues, with 3 marked as high priority. These focus on immediate staffing adjustments and operational reviews for the worst-performing locations.\n\nWould you like me to show you the specific action items for these critical stores, or would you prefer to dive deeper into what's happening in Istanbul specifically?"
+    },
+    {
+      "timestamp": "2026-01-20T10:22:11.733Z",
+      "userQuery": "Which stores have critical efficiency?",
+      "analyzedQuery": {
+        "thinking": "The user asks 'Which stores have critical efficiency?' This is NOT a follow-up because: 1) They're asking about a completely different metric (efficiency) than the previous query (revenue), 2) They're not referencing the previous results with pronouns or asking for additional details about those specific stores, 3) They want to find stores with 'critical' (likely poor) efficiency, which is a new analysis entirely. The word 'critical' suggests they want stores with poor/low efficiency metrics.",
+        "metric": "orders_per_active_headcount",
+        "aggregation": "AVG",
+        "filters": {
+          "year": 2024,
+          "month_condition": null,
+          "store_names": null,
+          "store_type": null,
+          "store_city": null,
+          "custom_condition": null
+        },
+        "sorting": "ASC",
+        "limit": 100,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": true,
+        "kpiCategory": "efficiency",
+        "intent": "Find stores with critically low efficiency (orders per active headcount)"
+      },
+      "sqlQuery": "SELECT store_name, AVG(orders_per_active_headcount) as avg_orders_per_staff\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY avg_orders_per_staff ASC\nLIMIT 100",
+      "results": [
+        {
+          "store_name": "Istanbul_AVM_25",
+          "avg_orders_per_staff": 528.875
+        },
+        {
+          "store_name": "Kars_AVM_2",
+          "avg_orders_per_staff": 552.6183333333333
+        },
+        {
+          "store_name": "Istanbul_AVM_29",
+          "avg_orders_per_staff": 566.2625
+        },
+        {
+          "store_name": "Hakkari_AVM_2",
+          "avg_orders_per_staff": 569.1166666666667
+        },
+        {
+          "store_name": "Burdur_Cadde_3",
+          "avg_orders_per_staff": 574.1891666666667
+        }
+      ],
+      "finalAnswer": "Based on the data, I've identified 100 stores with critical efficiency issues. The most concerning ones are:\n\n• **Istanbul_AVM_25** leads the list with only 529 orders per staff member - that's about 40% below what we'd expect for healthy operations\n• **Kars_AVM_2** and **Istanbul_AVM_29** follow closely with 553 and 566 orders per staff respectively\n• Istanbul appears to be a particular problem area, with multiple stores showing up in the critical list\n\nThe analysis reveals that these stores are likely understaffed relative to their order volumes. When staff are overwhelmed, they can't process orders as efficiently, creating a vicious cycle of poor performance. Istanbul stores specifically seem to face additional operational challenges - possibly related to traffic, delivery difficulties, or intense local competition.\n\nWhat's particularly concerning is that 40% of all stores are showing either critical or warning-level efficiency issues. This suggests we're dealing with a systemic problem rather than isolated cases.\n\nI've generated 6 tasks to address these issues, with 3 marked as high priority. These focus on immediate staffing adjustments and operational reviews for the worst-performing locations.\n\nWould you like me to show you the specific action items for these critical stores, or would you prefer to dive deeper into what's happening in Istanbul specifically?"
     }
   ],
   "entities": {
     "recentStores": [
       {
-        "name": "Tokat_Cadde"
+        "name": "Istanbul_AVM_25"
       },
       {
-        "name": "Kars_Cadde"
+        "name": "Kars_AVM_2"
       },
       {
-        "name": "Sakarya_Cadde_2"
+        "name": "Istanbul_AVM_29"
       },
       {
-        "name": "Tunceli_Cadde"
+        "name": "Hakkari_AVM_2"
       },
       {
-        "name": "Hatay_Cadde_2"
+        "name": "Burdur_Cadde_3"
       },
       {
-        "name": "Hakkari_Cadde"
+        "name": "Yalova_Cadde_2"
       },
       {
-        "name": "Istanbul_Cadde_3"
+        "name": "Aydin_AVM_2"
       },
       {
-        "name": "Ardahan_Cadde"
+        "name": "Istanbul_AVM_23"
       },
       {
-        "name": "Mugla_Cadde_2"
+        "name": "Aksaray_AVM"
       },
       {
-        "name": "Istanbul_Cadde_8"
+        "name": "Yozgat_AVM"
+      },
+      {
+        "name": "Burdur_Cadde_2"
+      },
+      {
+        "name": "Istanbul_AVM_2"
+      },
+      {
+        "name": "Ankara_AVM"
+      },
+      {
+        "name": "Istanbul_AVM"
+      },
+      {
+        "name": "Burdur_AVM_5"
+      },
+      {
+        "name": "Nevsehir_AVM"
+      },
+      {
+        "name": "Zonguldak_Cadde"
+      },
+      {
+        "name": "Istanbul_Cadde_12"
+      },
+      {
+        "name": "Kars_AVM"
+      },
+      {
+        "name": "Erzurum_Cadde_2"
       }
     ],
     "discussedMetrics": [
@@ -315,53 +310,414 @@
       "orders_per_square_meter",
       "store_profit_tl_month",
       "district_manager_hours_spent",
-      "net_revenue_tl_month"
+      "net_revenue_tl_month",
+      "orders_per_active_headcount"
     ],
     "lastTimeFilter": null,
     "lastStoreFilter": null
   },
-  "lastQuery": "Show top 10 stores by revenue in 2024 with name ",
+  "lastQuery": "Which stores have critical efficiency?",
   "lastResults": [
     {
-      "store_name": "Tokat_Cadde",
-      "total_revenue": 69192581
+      "store_name": "Istanbul_AVM_25",
+      "avg_orders_per_staff": 528.875
     },
     {
-      "store_name": "Kars_Cadde",
-      "total_revenue": 65898779
+      "store_name": "Kars_AVM_2",
+      "avg_orders_per_staff": 552.6183333333333
     },
     {
-      "store_name": "Sakarya_Cadde_2",
-      "total_revenue": 65780606
+      "store_name": "Istanbul_AVM_29",
+      "avg_orders_per_staff": 566.2625
     },
     {
-      "store_name": "Tunceli_Cadde",
-      "total_revenue": 65312350
+      "store_name": "Hakkari_AVM_2",
+      "avg_orders_per_staff": 569.1166666666667
     },
     {
-      "store_name": "Hatay_Cadde_2",
-      "total_revenue": 64968412
+      "store_name": "Burdur_Cadde_3",
+      "avg_orders_per_staff": 574.1891666666667
     },
     {
-      "store_name": "Hakkari_Cadde",
-      "total_revenue": 64494761
+      "store_name": "Yalova_Cadde_2",
+      "avg_orders_per_staff": 576.1825
     },
     {
-      "store_name": "Istanbul_Cadde_3",
-      "total_revenue": 63448767
+      "store_name": "Aydin_AVM_2",
+      "avg_orders_per_staff": 578.3216666666667
     },
     {
-      "store_name": "Ardahan_Cadde",
-      "total_revenue": 63158171
+      "store_name": "Istanbul_AVM_23",
+      "avg_orders_per_staff": 591.5791666666667
     },
     {
-      "store_name": "Mugla_Cadde_2",
-      "total_revenue": 63087334
+      "store_name": "Aksaray_AVM",
+      "avg_orders_per_staff": 592.8691666666666
+    },
+    {
+      "store_name": "Yozgat_AVM",
+      "avg_orders_per_staff": 593.7725
+    },
+    {
+      "store_name": "Burdur_Cadde_2",
+      "avg_orders_per_staff": 594.7816666666666
+    },
+    {
+      "store_name": "Istanbul_AVM_2",
+      "avg_orders_per_staff": 601.2058333333333
+    },
+    {
+      "store_name": "Ankara_AVM",
+      "avg_orders_per_staff": 603.8666666666667
+    },
+    {
+      "store_name": "Istanbul_AVM",
+      "avg_orders_per_staff": 604.7008333333333
+    },
+    {
+      "store_name": "Burdur_AVM_5",
+      "avg_orders_per_staff": 607.2333333333333
+    },
+    {
+      "store_name": "Nevsehir_AVM",
+      "avg_orders_per_staff": 608.4383333333334
+    },
+    {
+      "store_name": "Zonguldak_Cadde",
+      "avg_orders_per_staff": 618.9816666666667
+    },
+    {
+      "store_name": "Istanbul_Cadde_12",
+      "avg_orders_per_staff": 622.4291666666667
+    },
+    {
+      "store_name": "Kars_AVM",
+      "avg_orders_per_staff": 624.0575
+    },
+    {
+      "store_name": "Erzurum_Cadde_2",
+      "avg_orders_per_staff": 629.61
+    },
+    {
+      "store_name": "Sanliurfa_AVM",
+      "avg_orders_per_staff": 632.6266666666667
+    },
+    {
+      "store_name": "Mugla_Cadde",
+      "avg_orders_per_staff": 635.8875
+    },
+    {
+      "store_name": "Sinop_AVM_2",
+      "avg_orders_per_staff": 636.7075
+    },
+    {
+      "store_name": "Istanbul_AVM_7",
+      "avg_orders_per_staff": 643.5775
+    },
+    {
+      "store_name": "Erzurum_Cadde_3",
+      "avg_orders_per_staff": 643.9408333333333
+    },
+    {
+      "store_name": "Gaziantep_AVM",
+      "avg_orders_per_staff": 644.0675
+    },
+    {
+      "store_name": "Kutahya_AVM_2",
+      "avg_orders_per_staff": 650.5308333333334
+    },
+    {
+      "store_name": "Nevsehir_AVM_2",
+      "avg_orders_per_staff": 655.28
+    },
+    {
+      "store_name": "Rize_AVM",
+      "avg_orders_per_staff": 670.8525
+    },
+    {
+      "store_name": "Kocaeli_Cadde",
+      "avg_orders_per_staff": 676.5175
+    },
+    {
+      "store_name": "Sakarya_Cadde_3",
+      "avg_orders_per_staff": 679.6616666666666
+    },
+    {
+      "store_name": "Kilis_Cadde",
+      "avg_orders_per_staff": 682.5083333333333
+    },
+    {
+      "store_name": "Sakarya_Cadde",
+      "avg_orders_per_staff": 683.701
+    },
+    {
+      "store_name": "Karaman_AVM_2",
+      "avg_orders_per_staff": 692.2966666666666
+    },
+    {
+      "store_name": "Istanbul_AVM_18",
+      "avg_orders_per_staff": 693.1633333333333
+    },
+    {
+      "store_name": "Istanbul_Cadde_7",
+      "avg_orders_per_staff": 693.4166666666666
+    },
+    {
+      "store_name": "Samsun_Cadde",
+      "avg_orders_per_staff": 696.1941666666667
+    },
+    {
+      "store_name": "Istanbul_AVM_5",
+      "avg_orders_per_staff": 704.8066666666666
+    },
+    {
+      "store_name": "Istanbul_Cadde_2",
+      "avg_orders_per_staff": 708.9233333333333
+    },
+    {
+      "store_name": "Aydin_Cadde_2",
+      "avg_orders_per_staff": 709.1666666666666
+    },
+    {
+      "store_name": "Hatay_Cadde",
+      "avg_orders_per_staff": 709.2416666666667
+    },
+    {
+      "store_name": "Istanbul_AVM_16",
+      "avg_orders_per_staff": 709.6341666666667
+    },
+    {
+      "store_name": "Giresun_Cadde",
+      "avg_orders_per_staff": 710.9133333333333
+    },
+    {
+      "store_name": "Sanliurfa_Cadde_3",
+      "avg_orders_per_staff": 712.26
+    },
+    {
+      "store_name": "Bilecik_AVM",
+      "avg_orders_per_staff": 712.5833333333334
+    },
+    {
+      "store_name": "Osmaniye_AVM_2",
+      "avg_orders_per_staff": 712.8891666666667
+    },
+    {
+      "store_name": "Mardin_AVM_2",
+      "avg_orders_per_staff": 713.9841666666666
+    },
+    {
+      "store_name": "Usak_Cadde_2",
+      "avg_orders_per_staff": 714.7858333333334
+    },
+    {
+      "store_name": "Izmir_AVM",
+      "avg_orders_per_staff": 717.3908333333334
+    },
+    {
+      "store_name": "Istanbul_AVM_26",
+      "avg_orders_per_staff": 717.405
+    },
+    {
+      "store_name": "Isparta_Cadde",
+      "avg_orders_per_staff": 719.6766666666666
+    },
+    {
+      "store_name": "Burdur_AVM_2",
+      "avg_orders_per_staff": 721.3483333333334
+    },
+    {
+      "store_name": "Istanbul_AVM_12",
+      "avg_orders_per_staff": 723.3108333333333
+    },
+    {
+      "store_name": "Samsun_AVM_2",
+      "avg_orders_per_staff": 725.4883333333333
+    },
+    {
+      "store_name": "Sirnak_AVM",
+      "avg_orders_per_staff": 726.2858333333334
+    },
+    {
+      "store_name": "Istanbul_AVM_9",
+      "avg_orders_per_staff": 727.1291666666667
+    },
+    {
+      "store_name": "Denizli_AVM_4",
+      "avg_orders_per_staff": 729.3141666666667
+    },
+    {
+      "store_name": "Manisa_Cadde",
+      "avg_orders_per_staff": 730.7933333333333
+    },
+    {
+      "store_name": "Kirikkale_Cadde",
+      "avg_orders_per_staff": 732.565
+    },
+    {
+      "store_name": "Nigde_AVM",
+      "avg_orders_per_staff": 735.25
+    },
+    {
+      "store_name": "Denizli_AVM_3",
+      "avg_orders_per_staff": 741.6358333333334
+    },
+    {
+      "store_name": "Sirnak_Cadde_3",
+      "avg_orders_per_staff": 743.4558333333333
+    },
+    {
+      "store_name": "Gumushane_AVM",
+      "avg_orders_per_staff": 743.5933333333334
+    },
+    {
+      "store_name": "Istanbul_AVM_11",
+      "avg_orders_per_staff": 745.5691666666667
+    },
+    {
+      "store_name": "Istanbul_AVM_17",
+      "avg_orders_per_staff": 745.7266666666667
+    },
+    {
+      "store_name": "Nevsehir_AVM_3",
+      "avg_orders_per_staff": 748.4725
+    },
+    {
+      "store_name": "Usak_AVM",
+      "avg_orders_per_staff": 749.3166666666667
+    },
+    {
+      "store_name": "Malatya_AVM",
+      "avg_orders_per_staff": 753.5
     },
     {
       "store_name": "Istanbul_Cadde_8",
-      "total_revenue": 61023550
+      "avg_orders_per_staff": 753.9016666666666
+    },
+    {
+      "store_name": "Kirikkale_Cadde_2",
+      "avg_orders_per_staff": 759.2316666666667
+    },
+    {
+      "store_name": "Afyonkarahisar_Cadde",
+      "avg_orders_per_staff": 761.6191666666666
+    },
+    {
+      "store_name": "Bingol_AVM",
+      "avg_orders_per_staff": 762.2491666666666
+    },
+    {
+      "store_name": "Kars_Cadde",
+      "avg_orders_per_staff": 762.6966666666667
+    },
+    {
+      "store_name": "Karaman_AVM",
+      "avg_orders_per_staff": 765.4391666666667
+    },
+    {
+      "store_name": "Isparta_AVM",
+      "avg_orders_per_staff": 766.7233333333334
+    },
+    {
+      "store_name": "Bingol_AVM_2",
+      "avg_orders_per_staff": 770.905
+    },
+    {
+      "store_name": "Mersin_Cadde",
+      "avg_orders_per_staff": 773.015
+    },
+    {
+      "store_name": "Istanbul_Cadde_14",
+      "avg_orders_per_staff": 776.2308333333333
+    },
+    {
+      "store_name": "Usak_Cadde_3",
+      "avg_orders_per_staff": 779.3658333333333
+    },
+    {
+      "store_name": "Istanbul_AVM_14",
+      "avg_orders_per_staff": 783.2758333333334
+    },
+    {
+      "store_name": "Istanbul_AVM_19",
+      "avg_orders_per_staff": 789.85
+    },
+    {
+      "store_name": "Siirt_Cadde",
+      "avg_orders_per_staff": 794.425
+    },
+    {
+      "store_name": "Sinop_Cadde_2",
+      "avg_orders_per_staff": 794.9733333333334
+    },
+    {
+      "store_name": "Ardahan_Cadde",
+      "avg_orders_per_staff": 801.3941666666667
+    },
+    {
+      "store_name": "Aydin_AVM",
+      "avg_orders_per_staff": 802.0233333333333
+    },
+    {
+      "store_name": "Istanbul_AVM_28",
+      "avg_orders_per_staff": 803.5333333333333
+    },
+    {
+      "store_name": "Agri_Cadde",
+      "avg_orders_per_staff": 804.7816666666666
+    },
+    {
+      "store_name": "Mugla_Cadde_2",
+      "avg_orders_per_staff": 807.9375
+    },
+    {
+      "store_name": "Igdir_AVM",
+      "avg_orders_per_staff": 810.0366666666666
+    },
+    {
+      "store_name": "Istanbul_Cadde_11",
+      "avg_orders_per_staff": 811.6208333333333
+    },
+    {
+      "store_name": "Mardin_Cadde",
+      "avg_orders_per_staff": 811.6458333333334
+    },
+    {
+      "store_name": "Eskisehir_AVM_2",
+      "avg_orders_per_staff": 817.0916666666667
+    },
+    {
+      "store_name": "Artvin_AVM",
+      "avg_orders_per_staff": 817.225
+    },
+    {
+      "store_name": "Samsun_AVM",
+      "avg_orders_per_staff": 823.47
+    },
+    {
+      "store_name": "Antalya_Cadde_2",
+      "avg_orders_per_staff": 823.5325
+    },
+    {
+      "store_name": "Bursa_AVM",
+      "avg_orders_per_staff": 825.9825
+    },
+    {
+      "store_name": "Rize_Cadde",
+      "avg_orders_per_staff": 827.6166666666667
+    },
+    {
+      "store_name": "Kastamonu_Cadde",
+      "avg_orders_per_staff": 828.2133333333334
+    },
+    {
+      "store_name": "Istanbul_AVM_15",
+      "avg_orders_per_staff": 828.7583333333333
+    },
+    {
+      "store_name": "Hatay_AVM",
+      "avg_orders_per_staff": 830.0408333333334
     }
   ],
-  "lastSQL": "SELECT store_name, SUM(net_revenue_tl_month) as total_revenue\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY total_revenue DESC\nLIMIT 10"
+  "lastSQL": "SELECT store_name, AVG(orders_per_active_headcount) as avg_orders_per_staff\nFROM store_metrics\nWHERE year = 2024\nGROUP BY store_name\nORDER BY avg_orders_per_staff ASC\nLIMIT 100"
 }

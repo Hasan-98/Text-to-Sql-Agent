@@ -155,6 +155,93 @@ body {
   border-bottom-left-radius: 4px;
 }
 
+.final-answer {
+  margin-bottom: 1.5rem;
+  font-size: 1.05rem;
+  color: var(--text-main);
+}
+
+.section-title {
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  font-weight: 700;
+  color: var(--accent-purple);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+/* KPI Card */
+.kpi-card {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.1), rgba(129, 140, 248, 0.05));
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  color: var(--text-main);
+}
+
+.score {
+  background: var(--accent-blue);
+  color: #0f172a;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+
+.finding-item {
+  font-size: 0.9rem;
+  margin-bottom: 0.5rem;
+  color: var(--text-muted);
+}
+
+/* Root Cause Card */
+.root-cause-card {
+  background: rgba(129, 140, 248, 0.05);
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin: 1rem 0;
+  border: 1px solid rgba(129, 140, 248, 0.2);
+}
+
+.impact-badge {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  margin-right: 0.75rem;
+  font-weight: 700;
+}
+
+.impact-badge.high {
+  background: #ef4444;
+  color: white;
+}
+
+.impact-badge.medium {
+  background: #f59e0b;
+  color: white;
+}
+
+.impact-badge.low {
+  background: #10b981;
+  color: white;
+}
+
+.cause-item {
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .input-area {
   padding: 2rem;
   background: linear-gradient(transparent, var(--primary-bg));
@@ -185,6 +272,27 @@ body {
 .welcome-screen h2 {
   color: var(--accent-blue);
   margin-bottom: 1rem;
+}
+
+.example-queries {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.query-chip {
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85rem;
+}
+
+.query-chip:hover {
+  border-color: var(--accent-blue);
+  background: rgba(56, 189, 248, 0.1);
 }
 
 input {
@@ -284,8 +392,54 @@ td {
 .task-item {
   background: rgba(129, 140, 248, 0.1);
   border-left: 4px solid var(--accent-purple);
-  padding: 1rem;
+  padding: 1.25rem;
   border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.task-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.priority-tag {
+  font-size: 0.65rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.priority-tag.high {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid #ef4444;
+}
+
+.priority-tag.medium {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid #f59e0b;
+}
+
+.priority-tag.low {
+  background: rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  border: 1px solid #10b981;
+}
+
+.task-desc {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.task-meta {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-bottom: 1rem;
 }
 
 .task-actions {

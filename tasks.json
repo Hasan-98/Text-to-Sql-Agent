@@ -1,0 +1,80 @@
+[
+  {
+    "id": 1,
+    "title": "Emergency Staffing Increase for Bottom 5% Performing Stores",
+    "description": "Immediately hire and deploy additional staff to increase headcount by 25-30% in the 5 lowest performing stores. Fast-track hiring process through temporary staffing agencies if needed. Prioritize experienced retail workers who can start immediately.",
+    "priority": "high",
+    "assignedTo": "HR Manager",
+    "deadline": "48 hours",
+    "expectedOutcome": "All 5 bottom-performing stores have increased staff levels by at least 25% with trained personnel ready to handle order volume",
+    "storesAffected": 5,
+    "status": "approved",
+    "createdAt": "2026-01-20T10:22:11.734Z",
+    "sourceQuery": "Which stores have critical efficiency?"
+  },
+  {
+    "id": 2,
+    "title": "Istanbul Region Operational Audit",
+    "description": "Conduct comprehensive operational assessment of all Istanbul stores including: delivery route analysis, competitor mapping, local traffic pattern impact, customer complaint analysis, and staff interview sessions to identify region-specific challenges.",
+    "priority": "high",
+    "assignedTo": "Regional Manager - Istanbul",
+    "deadline": "48 hours",
+    "expectedOutcome": "Detailed report identifying top 3 operational bottlenecks in Istanbul with actionable solutions for each",
+    "storesAffected": 100,
+    "status": "pending",
+    "createdAt": "2026-01-20T10:22:11.734Z",
+    "sourceQuery": "Which stores have critical efficiency?"
+  },
+  {
+    "id": 3,
+    "title": "Implement Temporary Staff Redistribution Plan",
+    "description": "Identify high-performing stores with excess capacity and temporarily reassign 1-2 staff members to support understaffed locations. Arrange transportation and temporary accommodation if needed. Focus on stores within same district first.",
+    "priority": "high",
+    "assignedTo": "District Manager",
+    "deadline": "24 hours",
+    "expectedOutcome": "At least 15 staff members redistributed to critical stores, reducing immediate pressure on overwhelmed teams",
+    "storesAffected": 30,
+    "status": "pending",
+    "createdAt": "2026-01-20T10:22:11.734Z",
+    "sourceQuery": "Which stores have critical efficiency?"
+  },
+  {
+    "id": 4,
+    "title": "Deploy Real-Time Store Monitoring Dashboard",
+    "description": "Set up automated monitoring system tracking store uptime, POS system status, order processing times, and staff clock-in data. Configure alerts for any store offline >15 minutes or processing delays >20% above average.",
+    "priority": "medium",
+    "assignedTo": "Operations Manager",
+    "deadline": "1 week",
+    "expectedOutcome": "Live dashboard accessible to all managers with automated alerts reducing response time to technical issues by 70%",
+    "storesAffected": 100,
+    "status": "pending",
+    "createdAt": "2026-01-20T10:22:11.734Z",
+    "sourceQuery": "Which stores have critical efficiency?"
+  },
+  {
+    "id": 5,
+    "title": "Establish Istanbul Delivery Partnership Program",
+    "description": "Negotiate partnerships with 2-3 local delivery services to supplement in-house delivery capacity during peak hours. Focus on services familiar with Istanbul traffic patterns and local area knowledge.",
+    "priority": "medium",
+    "assignedTo": "Regional Manager - Istanbul",
+    "deadline": "1 week",
+    "expectedOutcome": "Signed agreements with delivery partners providing 30% additional delivery capacity during peak hours",
+    "storesAffected": 100,
+    "status": "approved",
+    "createdAt": "2026-01-20T10:22:11.734Z",
+    "sourceQuery": "Which stores have critical efficiency?"
+  },
+  {
+    "id": 6,
+    "title": "Create Staffing Level Optimization Model",
+    "description": "Develop data-driven staffing model based on order volume patterns, peak hours, and store size. Include buffer capacity for unexpected volume spikes. Create hiring triggers when stores approach 85% capacity utilization.",
+    "priority": "medium",
+    "assignedTo": "Operations Manager",
+    "deadline": "1 week",
+    "expectedOutcome": "Automated staffing recommendation system preventing future understaffing situations with 2-week advance warning",
+    "storesAffected": 100,
+    "status": "pending",
+    "createdAt": "2026-01-20T10:22:11.734Z",
+    "sourceQuery": "Which stores have critical efficiency?"
+  }
+]
