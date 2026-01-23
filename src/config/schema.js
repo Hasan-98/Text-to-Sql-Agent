@@ -14,7 +14,7 @@ IDENTIFIERS:
 
 TIME COLUMNS:
 - month (integer): Month number (1-12)
-- year (integer): Year (e.g., 2024)
+- year (integer): Year
 - order_month (integer): IMPORTANT - This is the COUNT of orders for that month, NOT a date!
 
 FINANCIAL METRICS:
@@ -53,8 +53,8 @@ QUALITY METRICS:
 === CRITICAL RULES ===
 1. order_month = NUMBER of orders (use SUM to aggregate)
 2. Each row = ONE store for ONE month
-3. Latest data: year = 2024, month = 12
-4. Last 3 months: WHERE year = 2024 AND month >= 10
+3. Latest data: Use the maximum year and month available or infer from current date
+4. Time filters: Always calculate year and month based on the query relative to the current date
 5. Always use GROUP BY when using aggregate functions (SUM, AVG, COUNT)
 6. Column names are EXACT - use underscore format
 
@@ -63,7 +63,7 @@ QUALITY METRICS:
 Example 1: "Top 10 stores by revenue"
 SELECT store_name, SUM(net_revenue_tl_month) as total_revenue
 FROM store_metrics
-WHERE year = 2024
+WHERE year = [CURRENT_YEAR]
 GROUP BY store_name
 ORDER BY total_revenue DESC
 LIMIT 10;
@@ -71,7 +71,7 @@ LIMIT 10;
 Example 2: "Bottom 20 stores by orders last 3 months"
 SELECT store_name, SUM(order_month) as total_orders
 FROM store_metrics
-WHERE year = 2024 AND month >= 10
+WHERE (year = [CURRENT_YEAR] AND month >= [3_MONTHS_AGO_MONTH]) OR (year = [PREVIOUS_YEAR] AND month >= [WRAP_AROUND_MONTH])
 GROUP BY store_name
 ORDER BY total_orders ASC
 LIMIT 20;
@@ -79,14 +79,14 @@ LIMIT 20;
 Example 3: "Average profit margin by store type"
 SELECT store_type, AVG(store_profit_ratio_percent) as avg_profit_margin
 FROM store_metrics
-WHERE year = 2024
+WHERE year = [CURRENT_YEAR]
 GROUP BY store_type
 ORDER BY avg_profit_margin DESC;
 
 Example 4: "Stores with audit score below 70"
 SELECT store_name, AVG(store_audit_score) as avg_audit_score
 FROM store_metrics
-WHERE year = 2024
+WHERE year = [CURRENT_YEAR]
 GROUP BY store_name
 HAVING AVG(store_audit_score) < 70
 ORDER BY avg_audit_score ASC;

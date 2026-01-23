@@ -13,7 +13,8 @@ export class ConversationContext {
             recentStores: [],
             discussedMetrics: [],
             lastTimeFilter: null,
-            lastStoreFilter: null
+            lastStoreFilter: null,
+            decisions: [] // Track task decisions
         };
         this.lastQuery = null;
         this.lastResults = null;
@@ -23,14 +24,17 @@ export class ConversationContext {
         this.load();
     }
 
-    addInteraction(userQuery, analyzedQuery, sqlQuery, results, finalAnswer) {
+    addInteraction(userQuery, analyzedQuery, sqlQuery, results, finalAnswer, generatedTasks = null, kpiAnalysis = null, rootCauseAnalysis = null) {
         this.history.push({
             timestamp: new Date().toISOString(),
             userQuery,
             analyzedQuery,
             sqlQuery,
             results: results?.slice(0, 5), // Store only first 5 for context
-            finalAnswer
+            finalAnswer,
+            generatedTasks,
+            kpiAnalysis,
+            rootCauseAnalysis
         });
 
         this.updateEntities(analyzedQuery, results);
@@ -38,8 +42,8 @@ export class ConversationContext {
         this.lastResults = results;
         this.lastSQL = sqlQuery;
 
-        // Keep last 5 interactions
-        if (this.history.length > 5) {
+        // Keep last 50 interactions for better persistence
+        if (this.history.length > 50) {
             this.history.shift();
         }
 
@@ -69,6 +73,30 @@ export class ConversationContext {
         }
     }
 
+    addDecision(taskId, title, status) {
+        // Initialize decisions array if it doesn't exist
+        if (!this.entities.decisions) {
+            this.entities.decisions = [];
+        }
+
+        // Remove existing decision for this task
+        this.entities.decisions = this.entities.decisions.filter(d => String(d.taskId) !== String(taskId));
+
+        this.entities.decisions.push({
+            taskId,
+            title,
+            status,
+            timestamp: new Date().toISOString()
+        });
+
+        // Keep only last 10 decisions
+        if (this.entities.decisions.length > 10) {
+            this.entities.decisions.shift();
+        }
+
+        this.save();
+    }
+
     getContextForPrompt() {
         if (this.history.length === 0) {
             return "No previous conversation. This is a new query.";
@@ -95,6 +123,11 @@ ${this.lastSQL || 'None'}
 
 LAST RESULTS (first 3 rows):
 ${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'None'}
+
+RECENT TASK DECISIONS:
+${this.entities.decisions && this.entities.decisions.length > 0
+                ? this.entities.decisions.map(d => `- [${d.status.toUpperCase()}] ${d.title}`).join('\n')
+                : 'No decisions made yet.'}
 `;
         return context;
     }
@@ -131,7 +164,8 @@ ${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'No
                     recentStores: [],
                     discussedMetrics: [],
                     lastTimeFilter: null,
-                    lastStoreFilter: null
+                    lastStoreFilter: null,
+                    decisions: []
                 };
                 this.lastQuery = data.lastQuery || null;
                 this.lastResults = data.lastResults || null;
@@ -148,7 +182,8 @@ ${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'No
             recentStores: [],
             discussedMetrics: [],
             lastTimeFilter: null,
-            lastStoreFilter: null
+            lastStoreFilter: null,
+            decisions: []
         };
         this.lastQuery = null;
         this.lastResults = null;
@@ -162,6 +197,31 @@ ${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'No
                 console.error('Error deleting session file:', err.message);
             }
         }
+    }
+
+    getMessages() {
+        const messages = [];
+        this.history.forEach(turn => {
+            // Add user message
+            messages.push({
+                role: 'user',
+                text: turn.userQuery,
+                timestamp: turn.timestamp
+            });
+            // Add agent response
+            messages.push({
+                role: 'agent',
+                timestamp: turn.timestamp,
+                finalAnswer: turn.finalAnswer,
+                queryResult: turn.results,
+                sqlQuery: turn.sqlQuery,
+                analyzedQuery: turn.analyzedQuery,
+                generatedTasks: turn.generatedTasks,
+                kpiAnalysis: turn.kpiAnalysis,
+                rootCauseAnalysis: turn.rootCauseAnalysis
+            });
+        });
+        return messages;
     }
 }
 

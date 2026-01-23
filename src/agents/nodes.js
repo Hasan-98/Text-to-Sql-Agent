@@ -12,7 +12,17 @@ export async function contextAwareQueryAgent(state) {
     const contextInfo = conversationContext.getContextForPrompt();
     const hasContext = conversationContext.hasContext();
 
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDate = now.toISOString().split('T')[0];
+
     const prompt = `You are a Query Analysis Assistant. Your job is to understand what the user wants from a retail store database.
+
+=== SYSTEM TIME ===
+Today's Date: ${currentDate}
+Current Year: ${currentYear}
+Current Month: ${currentMonth}
 
 === YOUR TASK ===
 Analyze the user's question and extract the key information needed to build a SQL query.
@@ -48,7 +58,10 @@ Common mappings:
 
 STEP 4: IDENTIFY FILTERS
 What conditions limit the data?
-- Time: "last 3 months" → year = 2024 AND month >= 10
+- Time: Infer from today's date (${currentDate}).
+  - "last 3 months" means covering ${currentMonth - 2} to ${currentMonth} of ${currentYear} (adjust year if wrapping around Jan).
+  - "this year" means year = ${currentYear}.
+  - "last year" means year = ${currentYear - 1}.
 - Store type: "mall stores" → store_type = 'Mall'
 - Location: "in Istanbul" → store_city = 'Istanbul'
 - Performance: "below average", "worst", "best"
@@ -76,8 +89,8 @@ Respond with ONLY a JSON object (no markdown, no explanation):
     "metric": "the main metric column name",
     "aggregation": "SUM or AVG or COUNT or NONE",
     "filters": {
-        "year": 2024,
-        "month_condition": ">= 10 or specific month or null",
+        "year": ${currentYear},
+        "month_condition": "e.g., '>= 10' or 'BETWEEN 1 AND 12' or specific month number or null",
         "store_names": ["list of specific stores if mentioned"] or null,
         "store_type": "type if mentioned" or null,
         "store_city": "city if mentioned" or null,

@@ -24,20 +24,27 @@ const SUPABASE_ANON_KEY =
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Using a smaller model to demonstrate compatibility
-// const llm = new ChatOpenAI({
-//     model: process.env.LLM_MODEL || "gpt-4o-mini",
-//     temperature: 0,
-//     openAIApiKey: process.env.OPENAI_API_KEY,
-// });
-const llm = new ChatAnthropic({
-    // model: "claude-opus-4-20250514",
-    model: "claude-sonnet-4-5-20250929",
+const llm = new ChatOpenAI({
+    model: process.env.LLM_MODEL || "gpt-4o-mini",
     temperature: 0,
-    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+    openAIApiKey: process.env.OPENAI_API_KEY,
 });
-// ================================
-// ENHANCED SCHEMA WITH EXAMPLES
-// ================================
+// const llm = new ChatAnthropic({
+//     // model: "claude-opus-4-20250514",
+//     model: "claude-sonnet-4-5-20250929",
+//     temperature: 0,
+//     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+// });
+
+// const llm = new ChatOpenAI({
+//     model: "anthropic/claude-3-haiku",
+//     temperature: 0,
+//     openAIApiKey: process.env.OPENROUTER_API_KEY,
+//     configuration: {
+//         baseURL: "https://openrouter.ai/api/v1",
+//     }
+// });
+
 const DB_SCHEMA = `
 === DATABASE SCHEMA ===
 Database: PostgreSQL
@@ -54,7 +61,7 @@ IDENTIFIERS:
 
 TIME COLUMNS:
 - month (integer): Month number (1-12)
-- year (integer): Year (e.g., 2024)
+- year (integer): Year
 - order_month (integer): IMPORTANT - This is the COUNT of orders for that month, NOT a date!
 
 FINANCIAL METRICS:
@@ -93,8 +100,8 @@ QUALITY METRICS:
 === CRITICAL RULES ===
 1. order_month = NUMBER of orders (use SUM to aggregate)
 2. Each row = ONE store for ONE month
-3. Latest data: year = 2024, month = 12
-4. Last 3 months: WHERE year = 2024 AND month >= 10
+3. Latest data: Use the maximum year and month available or infer from current date
+4. Time filters: Always calculate year and month based on the query relative to the current date
 5. Always use GROUP BY when using aggregate functions (SUM, AVG, COUNT)
 6. Column names are EXACT - use underscore format
 
@@ -103,7 +110,7 @@ QUALITY METRICS:
 Example 1: "Top 10 stores by revenue"
 SELECT store_name, SUM(net_revenue_tl_month) as total_revenue
 FROM store_metrics
-WHERE year = 2024
+WHERE year = [CURRENT_YEAR]
 GROUP BY store_name
 ORDER BY total_revenue DESC
 LIMIT 10;
@@ -111,7 +118,7 @@ LIMIT 10;
 Example 2: "Bottom 20 stores by orders last 3 months"
 SELECT store_name, SUM(order_month) as total_orders
 FROM store_metrics
-WHERE year = 2024 AND month >= 10
+WHERE (year = [CURRENT_YEAR] AND month >= [3_MONTHS_AGO_MONTH]) OR (year = [PREVIOUS_YEAR] AND month >= [WRAP_AROUND_MONTH])
 GROUP BY store_name
 ORDER BY total_orders ASC
 LIMIT 20;
@@ -119,14 +126,14 @@ LIMIT 20;
 Example 3: "Average profit margin by store type"
 SELECT store_type, AVG(store_profit_ratio_percent) as avg_profit_margin
 FROM store_metrics
-WHERE year = 2024
+WHERE year = [CURRENT_YEAR]
 GROUP BY store_type
 ORDER BY avg_profit_margin DESC;
 
 Example 4: "Stores with audit score below 70"
 SELECT store_name, AVG(store_audit_score) as avg_audit_score
 FROM store_metrics
-WHERE year = 2024
+WHERE year = [CURRENT_YEAR]
 GROUP BY store_name
 HAVING AVG(store_audit_score) < 70
 ORDER BY avg_audit_score ASC;
@@ -358,7 +365,17 @@ async function contextAwareQueryAgent(state) {
     const contextInfo = conversationContext.getContextForPrompt();
     const hasContext = conversationContext.hasContext();
 
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+    const currentDate = now.toISOString().split('T')[0];
+
     const prompt = `You are a Query Analysis Assistant. Your job is to understand what the user wants from a retail store database.
+
+=== SYSTEM TIME ===
+Today's Date: ${currentDate}
+Current Year: ${currentYear}
+Current Month: ${currentMonth}
 
 === YOUR TASK ===
 Analyze the user's question and extract the key information needed to build a SQL query.
@@ -392,7 +409,10 @@ Common mappings:
 
 STEP 4: IDENTIFY FILTERS
 What conditions limit the data?
-- Time: "last 3 months" → year = 2024 AND month >= 10
+- Time: Infer from today's date (${currentDate}).
+  - "last 3 months" means covering ${currentMonth - 2} to ${currentMonth} of ${currentYear} (adjust year if wrapping around Jan).
+  - "this year" means year = ${currentYear}.
+  - "last year" means year = ${currentYear - 1}.
 - Store type: "mall stores" → store_type = 'Mall'
 - Location: "in Istanbul" → store_city = 'Istanbul'
 - Performance: "below average", "worst", "best"
@@ -426,7 +446,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
     "metric": "the main metric column name",
     "aggregation": "SUM or AVG or COUNT or NONE",
     "filters": {
-        "year": 2024,
+        "year": ${currentYear},
         "month_condition": ">= 10 or specific month or null",
         "store_names": ["list of specific stores if mentioned"] or null,
         "store_type": "type if mentioned" or null,
@@ -1355,7 +1375,7 @@ class ChatInterface {
         console.log('  • net_revenue_tl_month, store_profit_tl_month');
         console.log('  • store_audit_score, online_rating_score');
         console.log('  • active_headcount, store_size_m2');
-        console.log(chalk.gray('\nTime Range: 2024, months 1-12'));
+        console.log(chalk.gray('\nTime Range: Multiple years starting from 2024'));
     }
 
     printStats() {

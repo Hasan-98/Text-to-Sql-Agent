@@ -60,7 +60,7 @@ export class ChatInterface {
         console.log('  • net_revenue_tl_month, store_profit_tl_month');
         console.log('  • store_audit_score, online_rating_score');
         console.log('  • active_headcount, store_size_m2');
-        console.log(chalk.gray('\nTime Range: 2024, months 1-12'));
+        console.log(chalk.gray('\nTime Range: Multiple years available'));
     }
 
     printStats() {
