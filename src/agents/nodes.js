@@ -3,9 +3,10 @@ import { llm } from "../config/settings.js";
 import { DB_SCHEMA, KPI_DEFINITIONS } from "../config/schema.js";
 import { conversationContext } from "../context/ConversationContext.js";
 import { executeSQLTool } from "./tools.js";
+import { buildSQL, getRelevantColumns } from "./sqlBuilder.js";
 
 // ================================
-// AGENT 1: ENHANCED QUERY UNDERSTANDING
+// AGENT 1: QUERY UNDERSTANDING (Optimized for cheap models)
 // ================================
 export async function contextAwareQueryAgent(state) {
     const { userQuery } = state;
@@ -17,93 +18,45 @@ export async function contextAwareQueryAgent(state) {
     const currentMonth = now.getMonth() + 1;
     const currentDate = now.toISOString().split('T')[0];
 
-    const prompt = `You are a Query Analysis Assistant. Your job is to understand what the user wants from a retail store database.
+    // Compute helper values for few-shot examples
+    const threeMonthsAgo = currentMonth - 2 > 0 ? currentMonth - 2 : 1;
 
-=== SYSTEM TIME ===
-Today's Date: ${currentDate}
-Current Year: ${currentYear}
-Current Month: ${currentMonth}
+    const contextSection = hasContext
+        ? `Previous query: "${conversationContext.context.lastQuery || ''}"
+Previous stores: ${conversationContext.getRecentStoreNames().slice(0, 5).join(", ") || "none"}
+Follow-up = user says "they/those/these/their stores" or "also show X" for same stores.
+NOT follow-up = user names new filters, stores, or a completely different topic.`
+        : "New conversation, no previous context.";
 
-=== YOUR TASK ===
-Analyze the user's question and extract the key information needed to build a SQL query.
-You must decide if this is a FOLLOW-UP to the previous conversation or a COMPLETELY NEW query path.
+    const prompt = `Analyze this retail database query and return structured JSON.
 
-=== THINKING PROCESS ===
-Follow these steps IN ORDER:
+Table: store_metrics (one row = one store for one month)
+Columns: store_name, store_type (Mall/Street), store_city, store_district, month (1-12), year, order_month (order COUNT, use SUM to total), net_revenue_tl_month, avg_net_order_value_tl, net_revenue_per_m2, store_profit_tl_month, store_profit_ratio_percent, profit_per_m2, cogs_tl_month, personal_cost_tl_month, avg_discount_per_order_tl, avg_discount_percent_per_order, avg_cogs_percent_net_revenue, personal_cost_percent_net_revenue, store_size_m2, monthly_order_per_m2, revenue_per_active_headcount, orders_per_active_headcount, norm_headcount, active_headcount, store_audit_score (0-100), online_rating_score (0-5), competition_online_rating_score, price_index_vs_competition, district_manager_hours_spent, store_uptime_ratio_percent, product_availability_ratio_percent
 
-STEP 1: READ THE QUESTION
-User's Question: "${userQuery}"
+Today: ${currentDate} | Year: ${currentYear} | Month: ${currentMonth}
+${contextSection}
 
-STEP 2: EVALUATE CONTEXT
-${hasContext ? `Previous context is available:
-${contextInfo}
+Examples:
+Q: "Top 10 stores by revenue this year"
+A: {"metric":"net_revenue_tl_month","aggregation":"SUM","groupByField":"store_name","filters":{"year":${currentYear}},"sorting":"DESC","limit":10,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 10 stores by total revenue"}
 
-CRITICAL: Is this a follow-up? 
-- YES if: It uses pronouns (they, them, those, it, these) referring to previous results.
-- YES if: It asks for "more details", "what about manager time", "show ratings too" for the SAME stores.
-- NO if: It specifies a NEW filter (e.g., "now show mall stores", "compare Istanbul stores") that contradicts or replaces previous filters.
-- NO if: The user mentions a DIFFERENT metric or category without referencing the previous ones.
-` : `This is a NEW conversation. No previous context.`}
+Q: "What are their audit scores?"
+A: {"metric":"store_audit_score","aggregation":"AVG","groupByField":"store_name","filters":{"year":${currentYear}},"sorting":"DESC","limit":100,"isFollowUp":true,"useStoresFromLastQuery":true,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"audit scores for previously discussed stores"}
 
-STEP 3: IDENTIFY THE METRIC
-What number/measurement does the user want?
-Common mappings:
-- "orders" or "sales count" → order_month (remember: this is a COUNT, use SUM)
-- "revenue" or "sales" or "income" → net_revenue_tl_month
-- "profit" → store_profit_tl_month or store_profit_ratio_percent
-- "efficiency" → orders_per_active_headcount or revenue_per_active_headcount
-- "rating" or "score" → online_rating_score or store_audit_score
-- "availability" → product_availability_ratio_percent
-- "manager time" → district_manager_hours_spent
+Q: "Average profit margin by store type last 3 months"
+A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","groupByField":"store_type","filters":{"year":${currentYear},"month_condition":">= ${threeMonthsAgo}"},"sorting":"DESC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"average profit margin grouped by store type"}
 
-STEP 4: IDENTIFY FILTERS
-What conditions limit the data?
-- Time: Infer from today's date (${currentDate}).
-  - "last 3 months" means covering ${currentMonth - 2} to ${currentMonth} of ${currentYear} (adjust year if wrapping around Jan).
-  - "this year" means year = ${currentYear}.
-  - "last year" means year = ${currentYear - 1}.
-- Store type: "mall stores" → store_type = 'Mall'
-- Location: "in Istanbul" → store_city = 'Istanbul'
-- Performance: "below average", "worst", "best"
+Q: "Bottom 20 stores by orders in Istanbul"
+A: {"metric":"order_month","aggregation":"SUM","groupByField":"store_name","filters":{"year":${currentYear},"store_city":"Istanbul"},"sorting":"ASC","limit":20,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"bottom 20 stores by order count in Istanbul"}
 
-STEP 5: IDENTIFY SORTING
-- "top", "best", "highest" → ORDER BY ... DESC
-- "bottom", "worst", "lowest" → ORDER BY ... ASC
+Q: "Analyze why bottom stores have low efficiency"
+A: {"metric":"orders_per_active_headcount","aggregation":"AVG","groupByField":"store_name","filters":{"year":${currentYear}},"sorting":"ASC","limit":20,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":true,"kpiCategory":"efficiency","intent":"analyze low efficiency stores"}
 
-STEP 6: IDENTIFY LIMIT
-- Use EXACTLY what the user asks for.
-- "top 10" → LIMIT 10
-- "top 5" → LIMIT 5
-- If user specifies a number, use that number.
-- "all" or not specified → LIMIT 100 (safety limit).
-- FOLLOW-UP RULE: If this is a follow-up about specific stores from the last query, DO NOT apply a new LIMIT that would cut those stores off.
+Q: "Show me mall stores with rating below 3"
+A: {"metric":"online_rating_score","aggregation":"AVG","groupByField":"store_name","filters":{"year":${currentYear},"store_type":"Mall","custom_condition":"online_rating_score < 3"},"sorting":"ASC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"mall stores with low online rating"}
 
-STEP 7: IS THIS A KPI QUESTION?
-Does the user want analysis/recommendations, not just data?
-
-=== OUTPUT FORMAT ===
-Respond with ONLY a JSON object (no markdown, no explanation):
-
-{
-    "thinking": "Step-by-step reasoning about whether this is a follow-up or a new query.",
-    "metric": "the main metric column name",
-    "aggregation": "SUM or AVG or COUNT or NONE",
-    "filters": {
-        "year": ${currentYear},
-        "month_condition": "e.g., '>= 10' or 'BETWEEN 1 AND 12' or specific month number or null",
-        "store_names": ["list of specific stores if mentioned"] or null,
-        "store_type": "type if mentioned" or null,
-        "store_city": "city if mentioned" or null,
-        "custom_condition": "any other WHERE condition" or null
-    },
-    "sorting": "DESC or ASC",
-    "limit": number,
-    "isFollowUp": true or false,
-    "useStoresFromLastQuery": true or false,
-    "requiresKPIAnalysis": true or false,
-    "kpiCategory": "revenue" or "profit" or "efficiency" or "quality" or null,
-    "intent": "one sentence describing what user wants"
-}`;
+User question: "${userQuery}"
+Respond with ONLY the JSON object, no markdown.`;
 
     try {
         console.log(chalk.gray('\n🧠 Analyzing your question...'));
@@ -119,6 +72,11 @@ Respond with ONLY a JSON object (no markdown, no explanation):
         // If it's explicitly NOT a follow-up, clear internal context or flags
         if (!analyzedQuery.isFollowUp) {
             analyzedQuery.useStoresFromLastQuery = false;
+        }
+
+        // Default groupByField if missing
+        if (!analyzedQuery.groupByField) {
+            analyzedQuery.groupByField = "store_name";
         }
 
         console.log(chalk.gray(`   Intent: ${analyzedQuery.intent}`));
@@ -138,7 +96,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
 
 
 // ================================
-// AGENT 2: ENHANCED SQL GENERATION
+// AGENT 2: SQL GENERATION (Deterministic + LLM Fallback)
 // ================================
 export async function sqlGenerationAgent(state) {
     const { userQuery, analyzedQuery, correctionAttempts, validationResult, error } = state;
@@ -147,175 +105,89 @@ export async function sqlGenerationAgent(state) {
         return { error: "Query analysis failed - cannot generate SQL" };
     }
 
-    const llmWithTools = llm.bindTools([executeSQLTool]);
+    const isRetry = correctionAttempts > 0;
 
-    // Build correction guidance if this is a retry
-    let correctionSection = "";
-    if (validationResult && !validationResult.isCorrect) {
-        correctionSection = `
-=== ⚠️ PREVIOUS ATTEMPT FAILED - YOU MUST FIX THESE ISSUES ===
+    // --- PRIMARY PATH: Deterministic SQL (no LLM call) ---
+    if (!isRetry) {
+        const { sql, error: buildError } = buildSQL(analyzedQuery);
 
-Your previous SQL query:
-${state.sqlQuery}
-
-Problems found:
-${validationResult.issues.map((issue, i) => `${i + 1}. ${issue}`).join('\n')}
-
-How to fix:
-${validationResult.suggestions.map((sug, i) => `${i + 1}. ${sug}`).join('\n')}
-
-IMPORTANT: Generate a DIFFERENT query that fixes these problems!
-=============================================================
-`;
-    }
-
-    // Build store filter if using previous results
-    let storeFilter = "";
-    if (analyzedQuery?.useStoresFromLastQuery && conversationContext.entities.recentStores.length > 0) {
-        const storeNames = conversationContext.getRecentStoreNames().slice(0, 20);
-        storeFilter = `
-=== IMPORTANT: FILTER TO THESE SPECIFIC STORES ===
-The user is asking about stores from the previous query.
-You MUST add this to your WHERE clause:
-store_name IN (${storeNames.map(s => `'${s.replace(/'/g, "''")}'`).join(', ')})
-`;
-    }
-
-    const prompt = `You are a SQL Query Generator. Your job is to write a correct SQL query.
-
-${correctionSection}
-
-=== DATABASE SCHEMA ===
-${DB_SCHEMA}
-
-=== USER'S QUESTION ===
-"${userQuery}"
-
-=== ANALYSIS OF THE QUESTION ===
-${JSON.stringify(analyzedQuery, null, 2)}
-
-${storeFilter}
-
-=== STEP-BY-STEP SQL BUILDING ===
-
-Follow these steps to build your query:
-
-STEP 1: SELECT CLAUSE
-- What columns do I need?
-- Analysis says metric is: "${analyzedQuery.metric}"
-- Do I need to aggregate? Analysis says: "${analyzedQuery.aggregation}"
-- Always include store_name for identification
-- If aggregating, use: SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
-
-STEP 2: FROM CLAUSE
-- Always: FROM store_metrics
-
-STEP 3: WHERE CLAUSE
-Build conditions based on:
-- Year filter: ${analyzedQuery.filters?.year ? `year = ${analyzedQuery.filters.year}` : 'not specified'}
-- Month filter: ${analyzedQuery.filters?.month_condition ? `month ${analyzedQuery.filters.month_condition}` : 'not specified'}
-- Store filter: ${analyzedQuery.filters?.store_names ? `store_name IN (...)` : 'not specified'}
-- City filter: ${analyzedQuery.filters?.store_city ? `store_city = '${analyzedQuery.filters.store_city}'` : 'not specified'}
-- Type filter: ${analyzedQuery.filters?.store_type ? `store_type = '${analyzedQuery.filters.store_type}'` : 'not specified'}
-${storeFilter ? '- MUST include store filter from previous query (see above)' : ''}
-
-STEP 4: GROUP BY CLAUSE
-- If using SUM, AVG, or COUNT: MUST include GROUP BY store_name
-- If not aggregating: no GROUP BY needed
-
-STEP 5: ORDER BY CLAUSE
-- Sorting direction: ${analyzedQuery.sorting}
-- Order by the calculated/aggregated column
-- For "worst/bottom/lowest": use ASC
-- For "best/top/highest": use DESC
-
-STEP 6: LIMIT CLAUSE
-- User requested limit: ${analyzedQuery.limit}
-- Use EXACTLY this number: LIMIT ${analyzedQuery.limit}
-- Do NOT change or reduce this number
-
-=== COMMON MISTAKES TO AVOID ===
-1. ❌ Forgetting GROUP BY when using SUM/AVG
-2. ❌ Using "orders" instead of "order_month"
-3. ❌ Forgetting to aggregate order_month (it's per-month, use SUM for totals)
-4. ❌ Wrong sort order (ASC for worst, DESC for best)
-5. ❌ Missing year/month filters
-6. ❌ Forgot DISTINCT or GROUP BY when the user just wants a list of stores/names without duplicates.
-   - If the user asks for a LIST of stores/cities/types, use: SELECT DISTINCT column_name FROM ...
-   - OR use GROUP BY column_name to avoid seeing the same store 12 times (once for each month).
-
-=== FINAL CHECK ===
-Before executing, verify your SQL has:
-- [ ] SELECT has the right columns
-- [ ] Aggregation matches what user wants
-- [ ] WHERE filters are correct
-- [ ] GROUP BY is present if aggregating
-- [ ] ORDER BY direction is correct (${analyzedQuery.sorting})
-- [ ] LIMIT is EXACTLY ${analyzedQuery.limit} (not less!)
-
-=== ACTION ===
-Now use the execute_sql tool to run your query.`;
-
-    try {
-        const response = await llm.bindTools([executeSQLTool]).invoke(prompt);
-
-        if (response.tool_calls && response.tool_calls.length > 0) {
-            const toolCall = response.tool_calls[0];
-            const sqlQuery = toolCall.args.sqlQuery;
-
-            console.log(chalk.blue(`\n📝 Generated SQL (Attempt ${correctionAttempts + 1}):`));
-            console.log(chalk.gray(sqlQuery));
-
-            const toolResult = await executeSQLTool.invoke(toolCall.args);
-            const result = JSON.parse(toolResult);
-
-            if (result.success) {
-                console.log(chalk.green(`✅ Query executed: ${result.rowCount} rows returned`));
-                return {
-                    sqlQuery,
-                    queryResult: result.data
-                };
-            } else {
-                console.log(chalk.red(`❌ SQL Error: ${result.error}`));
-                return {
-                    sqlQuery,
-                    error: `SQL Error: ${result.error}`,
-                    queryResult: null
-                };
-            }
-        } else {
-            // Fallback: try to extract SQL from response
-            let sql = response.content.trim()
-                .replace(/```sql\n?/g, "")
-                .replace(/```\n?/g, "")
-                .trim();
-
-            // Find the SQL query in the response
-            const sqlMatch = sql.match(/SELECT[\s\S]*?(?:LIMIT\s+\d+|$)/i);
-            if (sqlMatch) {
-                sql = sqlMatch[0];
-            }
-
-            console.log(chalk.blue(`\n📝 Generated SQL (Attempt ${correctionAttempts + 1}):`));
+        if (sql && !buildError) {
+            console.log(chalk.blue(`\n📝 SQL (deterministic):`));
             console.log(chalk.gray(sql));
 
             const toolResult = await executeSQLTool.invoke({ sqlQuery: sql });
             const result = JSON.parse(toolResult);
 
             if (result.success) {
-                console.log(chalk.green(`✅ Query executed: ${result.rowCount} rows returned`));
+                console.log(chalk.green(`✅ Query OK: ${result.rowCount} rows`));
                 return {
                     sqlQuery: sql,
-                    queryResult: result.data
+                    queryResult: result.data,
+                    sqlBuildMethod: "deterministic"
                 };
             } else {
-                console.log(chalk.red(`❌ SQL Error: ${result.error}`));
-                return {
-                    sqlQuery: sql,
-                    error: `SQL Error: ${result.error}`,
-                    queryResult: null
-                };
+                console.log(chalk.yellow(`⚠️ Deterministic SQL failed: ${result.error}`));
+                console.log(chalk.yellow(`   Falling back to LLM...`));
             }
+        } else {
+            console.log(chalk.yellow(`⚠️ SQL builder error: ${buildError}`));
+            console.log(chalk.yellow(`   Falling back to LLM...`));
+        }
+    }
+
+    // --- FALLBACK PATH: LLM generates SQL (for retries or complex queries) ---
+    const relevantCols = getRelevantColumns(analyzedQuery.metric);
+
+    let retryContext = "";
+    if (isRetry && state.sqlQuery) {
+        const issues = validationResult?.issues || [error || "Query execution failed"];
+        retryContext = `Previous failing SQL: ${state.sqlQuery}\nIssues: ${issues.join("; ")}\nGenerate a DIFFERENT query that fixes these problems.\n`;
+    }
+
+    const fallbackPrompt = `Write a PostgreSQL SELECT query for the store_metrics table.
+Relevant columns: ${relevantCols}
+One row = one store per month. Use GROUP BY with aggregate functions (SUM/AVG).
+
+${retryContext}Question: "${userQuery}"
+Analysis: ${JSON.stringify(analyzedQuery)}
+
+Return ONLY the SQL query, no explanation.`;
+
+    try {
+        console.log(chalk.blue(`\n📝 SQL via LLM (Attempt ${correctionAttempts + 1}):`));
+
+        const response = await llm.invoke(fallbackPrompt);
+        let sql = response.content.trim()
+            .replace(/```sql\n?/g, "")
+            .replace(/```\n?/g, "")
+            .trim();
+
+        // Extract SQL if model added explanation
+        const sqlMatch = sql.match(/SELECT[\s\S]*?(?:LIMIT\s+\d+|;|$)/i);
+        if (sqlMatch) {
+            sql = sqlMatch[0].replace(/;$/, "").trim();
+        }
+
+        console.log(chalk.gray(sql));
+
+        const toolResult = await executeSQLTool.invoke({ sqlQuery: sql });
+        const result = JSON.parse(toolResult);
+
+        if (result.success) {
+            console.log(chalk.green(`✅ Query OK: ${result.rowCount} rows`));
+            return {
+                sqlQuery: sql,
+                queryResult: result.data,
+                sqlBuildMethod: "llm_fallback"
+            };
+        } else {
+            console.log(chalk.red(`❌ SQL Error: ${result.error}`));
+            return {
+                sqlQuery: sql,
+                error: `SQL Error: ${result.error}`,
+                queryResult: null,
+                sqlBuildMethod: "llm_fallback"
+            };
         }
     } catch (err) {
         console.log(chalk.red(`❌ Generation Error: ${err.message}`));
@@ -324,207 +196,101 @@ Now use the execute_sql tool to run your query.`;
 }
 
 // ================================
-// AGENT 3: ENHANCED VALIDATION
+// AGENT 3: VALIDATION (Code-based, no LLM call)
 // ================================
 export async function validationAgent(state) {
-    const { userQuery, analyzedQuery, sqlQuery, queryResult, correctionAttempts } = state;
+    const { analyzedQuery, sqlQuery, queryResult, correctionAttempts } = state;
 
     console.log(chalk.yellow(`\n🔍 Validating results...`));
 
-    // Quick fail checks
+    // Check 1: No results (query execution failed)
     if (!queryResult) {
-        console.log(chalk.red('   ❌ No results returned (query may have failed)'));
-        return {
-            validationResult: {
-                isCorrect: false,
-                confidence: 0,
-                issues: ["Query execution failed - no results returned"],
-                suggestions: ["Check SQL syntax", "Verify column names exist", "Check WHERE conditions aren't too restrictive"]
-            },
-            needsCorrection: correctionAttempts < 2,
-            correctionAttempts: correctionAttempts + 1,
-            error: null // Reset error so sqlGenerationAgent can try again
-        };
+        console.log(chalk.red('   ❌ No results returned'));
+        return makeFailResult("Query execution failed - no results returned", correctionAttempts, state);
     }
 
+    // Check 2: Empty results
     if (queryResult.length === 0) {
         console.log(chalk.red('   ❌ Query returned 0 rows'));
-        return {
-            validationResult: {
-                isCorrect: false,
-                confidence: 0,
-                issues: ["Query returned zero results"],
-                suggestions: ["Loosen the WHERE filters", "Check if data exists for the specified time period", "Verify store names are spelled correctly"]
-            },
-            needsCorrection: correctionAttempts < 2,
-            correctionAttempts: correctionAttempts + 1,
-            error: null // Reset error so sqlGenerationAgent can try again
-        };
+        return makeFailResult("Query returned zero results - filters may be too restrictive", correctionAttempts, state);
     }
 
-    // Check if row count is significantly less than requested
-    const expectedLimit = analyzedQuery.limit || 100;
-    if (queryResult.length < expectedLimit * 0.5 && queryResult.length < 10) {
-        console.log(chalk.yellow(`   ⚠️ Only ${queryResult.length} rows returned, expected ~${expectedLimit}`));
+    // Check 3: Metric column present in results
+    const resultColumns = Object.keys(queryResult[0]);
+    const metricName = analyzedQuery?.metric || "";
+    const hasMetricColumn = resultColumns.some(col =>
+        col === metricName ||
+        col === "result_value" ||
+        col.includes(metricName.split("_")[0])
+    );
+    if (!hasMetricColumn && metricName) {
+        console.log(chalk.red(`   ❌ Metric "${metricName}" not in columns: ${resultColumns.join(", ")}`));
+        return makeFailResult(
+            `Expected metric "${metricName}" not found in result columns: ${resultColumns.join(", ")}`,
+            correctionAttempts, state
+        );
     }
 
-    // Extract numeric values from first and last rows to help validation
-    const firstRowValues = queryResult[0] ? Object.values(queryResult[0]).filter(v => typeof v === 'number') : [];
-    const lastRowValues = queryResult[queryResult.length - 1] ? Object.values(queryResult[queryResult.length - 1]).filter(v => typeof v === 'number') : [];
+    // Check 4: Sorting correctness
+    const numericCol = resultColumns.find(c => c === "result_value" || c === metricName);
+    if (numericCol && queryResult.length >= 2) {
+        const firstVal = Number(queryResult[0][numericCol]);
+        const lastVal = Number(queryResult[queryResult.length - 1][numericCol]);
 
-    const prompt = `You are a SQL Query Validator. Check if the results match what the user asked for.
+        if (!isNaN(firstVal) && !isNaN(lastVal) && Math.abs(firstVal - lastVal) > 0.01) {
+            const wantsAsc = analyzedQuery?.sorting === "ASC";
+            const isAsc = firstVal <= lastVal;
 
-=== YOUR TASK ===
-Determine if the SQL query results correctly answer the user's question.
-Be CAREFUL not to reject correct queries!
-
-=== CRITICAL SORTING RULES ===
-READ THIS CAREFULLY - Many validation errors come from misunderstanding sorting:
-
-- ORDER BY column ASC = Values go from SMALL to LARGE (1, 2, 3, 10, 100)
-- ORDER BY column DESC = Values go from LARGE to SMALL (100, 10, 3, 2, 1)
-
-SO:
-- "bottom", "lowest", "worst", "least" → Need ASC → First row has SMALLEST number
-- "top", "highest", "best", "most" → Need DESC → First row has LARGEST number
-
-=== WHAT USER WANTED ===
-Question: "${userQuery}"
-Intent: "${analyzedQuery.intent}"
-Metric: "${analyzedQuery.metric}"
-Sorting: "${analyzedQuery.sorting}" 
-  - ${analyzedQuery.sorting === 'ASC' ? 'ASC means LOWEST/SMALLEST values first (correct for "bottom", "worst", "lowest")' : 'DESC means HIGHEST/LARGEST values first (correct for "top", "best", "highest")'}
-Requested Limit: ${analyzedQuery.limit}
-
-=== SQL QUERY GENERATED ===
-${sqlQuery}
-
-=== ACTUAL RESULTS ===
-Rows returned: ${queryResult.length}
-Columns: ${Object.keys(queryResult[0] || {}).join(', ')}
-
-First row (should have ${analyzedQuery.sorting === 'ASC' ? 'LOWEST' : 'HIGHEST'} value):
-${JSON.stringify(queryResult[0], null, 2)}
-Numeric values in first row: ${firstRowValues.join(', ')}
-
-Last row (should have ${analyzedQuery.sorting === 'ASC' ? 'HIGHEST' : 'LOWEST'} value):
-${JSON.stringify(queryResult[queryResult.length - 1], null, 2)}
-Numeric values in last row: ${lastRowValues.join(', ')}
-
-=== VALIDATION CHECKLIST ===
-
-CHECK 1: CORRECT METRIC?
-- Wanted: ${analyzedQuery.metric}
-- Column "${analyzedQuery.metric}" or similar alias present in results?
-- For order counts: should use SUM(order_month)
-- For averages: should use AVG(column)
-
-CHECK 2: CORRECT SORTING? ⚠️ BE VERY CAREFUL HERE
-- User asked for: ${analyzedQuery.sorting === 'ASC' ? 'LOWEST/BOTTOM/WORST first' : 'HIGHEST/TOP/BEST first'}
-- SQL has: ORDER BY ... ${analyzedQuery.sorting}
-- ${analyzedQuery.sorting === 'ASC' ?
-            'For ASC: First row number should be SMALLER than last row number. Example: First=9864, Last=25541 ✓' :
-            'For DESC: First row number should be LARGER than last row number. Example: First=100000, Last=25541 ✓'}
-- Compare: First row values (${firstRowValues.slice(0, 2).join(', ')}) vs Last row values (${lastRowValues.slice(0, 2).join(', ')})
-- Is first value ${analyzedQuery.sorting === 'ASC' ? '<' : '>'} last value? That's CORRECT!
-
-CHECK 3: CORRECT ROW COUNT?
-- Requested: ${analyzedQuery.limit}
-- Got: ${queryResult.length}
-- IMPORTANT: If query filters to specific stores (WHERE store_name IN ...), 
-  the result count is LIMITED by how many stores match, NOT by LIMIT clause!
-- ${queryResult.length} rows is acceptable if:
-  a) It matches the requested limit, OR
-  b) The WHERE clause filters to fewer rows than the limit, OR
-  c) There simply aren't more matching rows in the database
-- Only flag as problem if we got WAY fewer rows than expected AND no filtering was applied
-
-CHECK 4: DATA REASONABLE?
-- Are numbers in realistic range for retail?
-- No NULL values where there shouldn't be?
-- Store names look valid?
-
-CHECK 5: ANSWERS THE QUESTION?
-- Does this data actually answer what was asked?
-
-=== DECISION GUIDE ===
-Mark as CORRECT (isCorrect: true) if:
-- The metric is right (or close enough alias)
-- The sorting direction matches what user wanted
-- We got a reasonable number of rows
-- Data looks sensible
-
-Mark as INCORRECT (isCorrect: false) ONLY if:
-- Completely wrong metric/column
-- Sorting is backwards (wanted lowest, got highest first)
-- Query clearly doesn't answer the question
-- Data is obviously broken (all NULLs, wrong data type)
-
-When in doubt, mark as CORRECT! Don't reject working queries.
-
-=== OUTPUT ===
-JSON only, no markdown:
-
-{
-    "thinking": "Step by step: 1) Metric check... 2) Sorting check... 3) Count check...",
-    "isCorrect": true or false,
-    "confidence": 0-100,
-    "checkResults": {
-        "correctMetric": true or false,
-        "correctSorting": true or false,
-        "correctLimit": true or false,
-        "dataMakesSense": true or false,
-        "answersQuestion": true or false
-    },
-    "issues": [],
-    "suggestions": [],
-    "reasoning": "One sentence summary"
-}`;
-
-    try {
-        const response = await llm.invoke(prompt);
-        let validation = response.content.trim()
-            .replace(/```json\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim();
-
-        const validationResult = JSON.parse(validation);
-
-        if (validationResult.isCorrect) {
-            console.log(chalk.green(`   ✅ Validation PASSED (${validationResult.confidence}% confidence)`));
-            console.log(chalk.gray(`   ${validationResult.reasoning}`));
-        } else {
-            console.log(chalk.red(`   ❌ Validation FAILED (${validationResult.confidence}% confidence)`));
-            validationResult.issues.forEach(issue => {
-                console.log(chalk.yellow(`   • ${issue}`));
-            });
+            if (wantsAsc !== isAsc) {
+                console.log(chalk.red(`   ❌ Sorting wrong: wanted ${analyzedQuery.sorting}, first=${firstVal}, last=${lastVal}`));
+                return makeFailResult(
+                    `Sorting incorrect: wanted ${analyzedQuery.sorting} but first=${firstVal}, last=${lastVal}`,
+                    correctionAttempts, state
+                );
+            }
         }
-
-        return {
-            validationResult,
-            needsCorrection: !validationResult.isCorrect && correctionAttempts < 2,
-            correctionAttempts: correctionAttempts + 1,
-            // Track SQL attempts to detect duplicates
-            previousSQLAttempts: [
-                ...(state.previousSQLAttempts || []),
-                sqlQuery.trim().toLowerCase().replace(/\s+/g, ' ')
-            ]
-        };
-    } catch (err) {
-        console.log(chalk.yellow(`   ⚠️ Validation parse error, assuming results are OK`));
-        return {
-            validationResult: {
-                isCorrect: true,
-                confidence: 50,
-                reasoning: "Validation check encountered an error, proceeding with results"
-            },
-            needsCorrection: false
-        };
     }
+
+    // All checks passed
+    console.log(chalk.green(`   ✅ Validation passed (${queryResult.length} rows, metric & sorting OK)`));
+
+    return {
+        validationResult: {
+            isCorrect: true,
+            confidence: 90,
+            issues: [],
+            suggestions: [],
+            reasoning: `Passed: ${queryResult.length} rows, metric present, sorting correct`
+        },
+        needsCorrection: false,
+        correctionAttempts: correctionAttempts + 1,
+        previousSQLAttempts: [
+            ...(state.previousSQLAttempts || []),
+            sqlQuery.trim().toLowerCase().replace(/\s+/g, " ")
+        ]
+    };
+}
+
+function makeFailResult(issue, correctionAttempts, state) {
+    return {
+        validationResult: {
+            isCorrect: false,
+            confidence: 0,
+            issues: [issue],
+            suggestions: ["Retry with corrected SQL"]
+        },
+        needsCorrection: correctionAttempts < 2,
+        correctionAttempts: correctionAttempts + 1,
+        error: null,
+        previousSQLAttempts: [
+            ...(state.previousSQLAttempts || []),
+            ...(state.sqlQuery ? [state.sqlQuery.trim().toLowerCase().replace(/\s+/g, " ")] : [])
+        ]
+    };
 }
 
 // ================================
-// AGENT 4: ENHANCED KPI ANALYSIS
+// AGENT 4: KPI ANALYSIS (Trimmed prompt)
 // ================================
 export async function kpiAnalysisAgent(state) {
     const { analyzedQuery, queryResult } = state;
@@ -538,58 +304,16 @@ export async function kpiAnalysisAgent(state) {
 
     console.log(chalk.yellow(`\n📊 Analyzing ${kpiDef.name}...`));
 
-    const prompt = `You are a Retail KPI Analyst. Analyze the store performance data.
+    const prompt = `Analyze ${queryResult.length} stores for ${kpiDef.name} (${kpiDef.description}).
+Metrics: ${kpiDef.metrics.join(", ")}
+Thresholds: Critical < ${kpiDef.thresholds.critical}%, Warning < ${kpiDef.thresholds.warning}%, Good > ${kpiDef.thresholds.good}%
+Root cause factors: ${kpiDef.rootCauseFactors.join(", ")}
 
-=== KPI CATEGORY ===
-Category: ${kpiDef.name}
-Description: ${kpiDef.description}
-Key Metrics: ${kpiDef.metrics.join(', ')}
+Data (first 3 stores):
+${JSON.stringify(queryResult.slice(0, 3), null, 2)}
 
-=== THRESHOLDS ===
-- Critical (Red): Below ${kpiDef.thresholds.critical}%
-- Warning (Yellow): Below ${kpiDef.thresholds.warning}%
-- Good (Green): Above ${kpiDef.thresholds.good}%
-
-=== DATA TO ANALYZE ===
-Number of stores: ${queryResult.length}
-Sample data (first 5 rows):
-${JSON.stringify(queryResult.slice(0, 5), null, 2)}
-
-=== ANALYSIS STEPS ===
-
-STEP 1: OVERALL HEALTH
-- Are most stores performing well or poorly?
-- What percentage are in critical/warning/good status?
-
-STEP 2: KEY FINDINGS
-- What patterns do you see?
-- Are there outliers?
-- Any geographic or type-based patterns?
-
-STEP 3: ROOT CAUSE NEEDED?
-- If many stores are underperforming, we need to investigate why
-- Factors to investigate: ${kpiDef.rootCauseFactors.join(', ')}
-
-=== OUTPUT FORMAT ===
-Respond with ONLY a JSON object:
-
-{
-    "thinking": "Your analysis process",
-    "healthStatus": "Critical" or "Warning" or "Good" or "Excellent",
-    "overallScore": number from 0-100,
-    "distribution": {
-        "critical": number of stores,
-        "warning": number of stores,
-        "good": number of stores
-    },
-    "keyFindings": [
-        "Finding 1: specific insight with numbers",
-        "Finding 2: specific insight with numbers",
-        "Finding 3: specific insight with numbers"
-    ],
-    "needsRootCause": true or false,
-    "urgency": "immediate" or "soon" or "monitor"
-}`;
+Return ONLY JSON:
+{"healthStatus":"Critical|Warning|Good|Excellent","overallScore":0-100,"distribution":{"critical":N,"warning":N,"good":N},"keyFindings":["finding1","finding2","finding3"],"needsRootCause":true/false,"urgency":"immediate|soon|monitor"}`;
 
     try {
         const response = await llm.invoke(prompt);
@@ -600,13 +324,7 @@ Respond with ONLY a JSON object:
 
         const kpiAnalysis = JSON.parse(analysis);
 
-        const statusEmoji = {
-            'Critical': '🔴',
-            'Warning': '🟡',
-            'Good': '🟢',
-            'Excellent': '🌟'
-        };
-
+        const statusEmoji = { 'Critical': '🔴', 'Warning': '🟡', 'Good': '🟢', 'Excellent': '🌟' };
         console.log(chalk.gray(`   Status: ${statusEmoji[kpiAnalysis.healthStatus] || '⚪'} ${kpiAnalysis.healthStatus}`));
         console.log(chalk.gray(`   Score: ${kpiAnalysis.overallScore}/100`));
 
@@ -618,7 +336,7 @@ Respond with ONLY a JSON object:
 }
 
 // ================================
-// AGENT 5: ENHANCED ROOT CAUSE
+// AGENT 5: ROOT CAUSE (Trimmed prompt)
 // ================================
 export async function rootCauseAgent(state) {
     const { kpiAnalysis, queryResult, analyzedQuery } = state;
@@ -632,69 +350,15 @@ export async function rootCauseAgent(state) {
 
     console.log(chalk.yellow(`\n🔍 Investigating root causes...`));
 
-    const prompt = `You are a Retail Operations Analyst. Identify why stores are underperforming.
+    const prompt = `Identify why stores underperform in ${kpiDef.name}. Status: ${kpiAnalysis.healthStatus}, Score: ${kpiAnalysis.overallScore}/100.
+Findings: ${kpiAnalysis.keyFindings.join("; ")}
+Factors to check: ${kpiDef.rootCauseFactors.join(", ")}
 
-=== CONTEXT ===
-KPI Category: ${kpiDef.name}
-Current Status: ${kpiAnalysis.healthStatus}
-Score: ${kpiAnalysis.overallScore}/100
-
-Key Findings:
-${kpiAnalysis.keyFindings.map((f, i) => `${i + 1}. ${f}`).join('\n')}
-
-=== FACTORS TO INVESTIGATE ===
-${kpiDef.rootCauseFactors.map(f => `- ${f}`).join('\n')}
-
-=== STORE DATA ===
+Data (3 stores):
 ${JSON.stringify(queryResult.slice(0, 3), null, 2)}
 
-=== ROOT CAUSE ANALYSIS STEPS ===
-
-STEP 1: IDENTIFY PATTERNS
-Look at the data for patterns:
-- Are certain store types worse?
-- Are certain cities worse?
-- Is there a staffing correlation?
-
-STEP 2: RANK CAUSES BY IMPACT
-For each potential cause, assess:
-- How many stores does it affect?
-- How severe is the impact?
-- Is it fixable?
-
-STEP 3: GENERATE RECOMMENDATIONS
-For each cause, what action would help?
-
-=== OUTPUT FORMAT ===
-Respond with ONLY a JSON object:
-
-{
-    "thinking": "Your analysis process",
-    "primaryCauses": [
-        {
-            "factor": "factor name",
-            "impact": "high" or "medium" or "low",
-            "affectedStores": "number or percentage",
-            "description": "Clear explanation of the problem",
-            "evidence": "What in the data shows this"
-        }
-    ],
-    "secondaryCauses": [
-        {
-            "factor": "factor name",
-            "impact": "medium" or "low",
-            "description": "explanation"
-        }
-    ],
-    "recommendations": [
-        {
-            "action": "Specific action to take",
-            "priority": "high" or "medium" or "low",
-            "expectedImpact": "What improvement to expect",
-            "timeline": "How long to implement"
-        }
-    ]
-}`;
+Return ONLY JSON:
+{"primaryCauses":[{"factor":"name","impact":"high|medium|low","affectedStores":"count","description":"explanation","evidence":"data proof"}],"secondaryCauses":[{"factor":"name","impact":"medium|low","description":"explanation"}],"recommendations":[{"action":"specific action","priority":"high|medium|low","expectedImpact":"improvement","timeline":"timeframe"}]}`;
 
     try {
         const response = await llm.invoke(prompt);
@@ -716,7 +380,7 @@ Respond with ONLY a JSON object:
 }
 
 // ================================
-// AGENT 6: ENHANCED TASK GENERATION
+// AGENT 6: TASK GENERATION (Trimmed prompt)
 // ================================
 export async function taskGenerationAgent(state) {
     const { kpiAnalysis, rootCauseAnalysis, queryResult } = state;
@@ -727,50 +391,18 @@ export async function taskGenerationAgent(state) {
 
     console.log(chalk.yellow(`\n📋 Generating action tasks...`));
 
-    const prompt = `You are a Retail Operations Manager. Create actionable tasks from the analysis.
+    const causes = rootCauseAnalysis.primaryCauses?.map(c => `${c.factor}: ${c.description}`).join("; ") || "None";
+    const recs = rootCauseAnalysis.recommendations?.map(r => `${r.action} (${r.priority})`).join("; ") || "None";
 
-=== ANALYSIS SUMMARY ===
-KPI Status: ${kpiAnalysis?.healthStatus || 'Unknown'}
-Urgency: ${kpiAnalysis?.urgency || 'monitor'}
+    const prompt = `Create actionable retail tasks from this analysis.
+Status: ${kpiAnalysis?.healthStatus || 'Unknown'}, Urgency: ${kpiAnalysis?.urgency || 'monitor'}, Affected stores: ${queryResult?.length || 0}
+Causes: ${causes}
+Recommendations: ${recs}
 
-Primary Causes:
-${rootCauseAnalysis.primaryCauses?.map(c => `- ${c.factor}: ${c.description}`).join('\n') || 'None identified'}
+Rules: Assign to Store Manager/District Manager/Regional Manager/HR/Operations. High priority=1-2 days, Medium=1 week, Low=2 weeks.
 
-Recommendations:
-${rootCauseAnalysis.recommendations?.map(r => `- ${r.action} (${r.priority} priority)`).join('\n') || 'None'}
-
-Affected Stores: ${queryResult?.length || 0}
-
-=== TASK GENERATION RULES ===
-1. Each task must be specific and actionable
-2. Assign to appropriate role (Store Manager, District Manager, Regional Manager, HR, Operations)
-3. Set realistic deadlines
-4. High priority = 1-2 days, Medium = 1 week, Low = 2 weeks
-
-=== OUTPUT FORMAT ===
-Respond with ONLY a JSON object:
-
-{
-    "tasks": [
-        {
-            "id": 1,
-            "title": "Clear, actionable task title",
-            "description": "Detailed description of what needs to be done",
-            "priority": "high" or "medium" or "low",
-            "assignedTo": "Role title",
-            "deadline": "specific timeframe",
-            "expectedOutcome": "What success looks like",
-            "storesAffected": number or "all"
-        }
-    ],
-    "summary": {
-        "totalTasks": number,
-        "highPriority": number,
-        "mediumPriority": number,
-        "lowPriority": number,
-        "estimatedCompletionTime": "overall timeline"
-    }
-}`;
+Return ONLY JSON:
+{"tasks":[{"id":1,"title":"task title","description":"details","priority":"high|medium|low","assignedTo":"role","deadline":"timeframe","expectedOutcome":"success metric","storesAffected":"count"}],"summary":{"totalTasks":N,"highPriority":N,"mediumPriority":N,"lowPriority":N,"estimatedCompletionTime":"timeline"}}`;
 
     try {
         const response = await llm.invoke(prompt);
@@ -792,7 +424,7 @@ Respond with ONLY a JSON object:
 }
 
 // ================================
-// AGENT 7: ENHANCED PRESENTATION
+// AGENT 7: PRESENTATION (Trimmed prompt)
 // ================================
 export async function resultPresentationAgent(state) {
     const {
@@ -801,9 +433,7 @@ export async function resultPresentationAgent(state) {
         queryResult,
         kpiAnalysis,
         rootCauseAnalysis,
-        generatedTasks,
-        validationResult,
-        correctionAttempts
+        generatedTasks
     } = state;
 
     console.log(chalk.yellow(`\n✨ Preparing response...`));
@@ -820,64 +450,31 @@ Would you like me to try a broader search?`;
         return { finalAnswer: errorResponse };
     }
 
-    const prompt = `You are a helpful Retail Analytics Assistant. Create a clear, conversational response.
+    // Build concise analysis section
+    let analysisPart = "";
+    if (kpiAnalysis) {
+        analysisPart += `\nKPI: ${kpiAnalysis.healthStatus} (${kpiAnalysis.overallScore}/100). Findings: ${kpiAnalysis.keyFindings?.join("; ") || "None"}`;
+    }
+    if (rootCauseAnalysis?.primaryCauses?.length) {
+        analysisPart += `\nCauses: ${rootCauseAnalysis.primaryCauses.map(c => `${c.factor} (${c.impact})`).join(", ")}`;
+    }
+    if (generatedTasks?.summary) {
+        analysisPart += `\nTasks: ${generatedTasks.summary.totalTasks} total, ${generatedTasks.summary.highPriority} high priority`;
+    }
 
-=== CONTEXT ===
-User Question: "${userQuery}"
+    const prompt = `Answer this retail analytics question conversationally. Use store names and numbers.
+Question: "${userQuery}"
+Results (${queryResult.length} stores, first 3):
+${JSON.stringify(queryResult.slice(0, 3), null, 2)}
+${queryResult.length > 3 ? `... and ${queryResult.length - 3} more` : ""}
+${analysisPart}
 
-Query Validation: ${validationResult?.isCorrect ? 'Passed' : 'Had issues but showing best results'}
-${correctionAttempts > 1 ? `Note: Query was refined ${correctionAttempts - 1} time(s) to get better results.` : ''}
-
-=== DATA RETRIEVED ===
-SQL Query Used:
-${sqlQuery}
-
-Total Results: ${queryResult.length} stores
-
-Top 5 Results:
-${JSON.stringify(queryResult.slice(0, 5), null, 2)}
-
-${queryResult.length > 5 ? `... and ${queryResult.length - 5} more stores` : ''}
-
-=== ANALYSIS (if available) ===
-${kpiAnalysis ? `
-KPI Analysis:
-- Status: ${kpiAnalysis.healthStatus}
-- Score: ${kpiAnalysis.overallScore}/100
-- Key Findings:
-${kpiAnalysis.keyFindings?.map(f => `  • ${f}`).join('\n') || '  None'}
-` : 'No KPI analysis performed.'}
-
-${rootCauseAnalysis ? `
-Root Causes Identified:
-${rootCauseAnalysis.primaryCauses?.map(c => `  • ${c.factor} (${c.impact} impact): ${c.description}`).join('\n') || '  None'}
-` : ''}
-
-${generatedTasks ? `
-Tasks Generated: ${generatedTasks.summary?.totalTasks || 0}
-High Priority: ${generatedTasks.summary?.highPriority || 0}
-` : ''}
-
-=== RESPONSE GUIDELINES ===
-1. Start with a direct answer to the question
-2. Highlight the most important findings (2-3 bullet points max)
-3. If there are concerning results, mention them
-4. If tasks were generated, summarize the key actions
-5. Keep it conversational, not robotic
-6. Use numbers and store names when relevant
-7. End with a helpful follow-up suggestion if appropriate
-
-=== FORMAT ===
-Write a natural, helpful response. Use bullet points sparingly.
-Do NOT include the SQL query in your response.
-Do NOT use markdown headers (##).
-Keep it under 300 words unless the user asked for detailed analysis.`;
+Rules: Start with direct answer. 2-3 bullet points max. No SQL. No markdown headers. Under 200 words.`;
 
     try {
         const response = await llm.invoke(prompt);
         const finalAnswer = response.content.trim();
 
-        // Save to conversation context
         conversationContext.addInteraction(
             userQuery,
             state.analyzedQuery,
@@ -888,18 +485,13 @@ Keep it under 300 words unless the user asked for detailed analysis.`;
 
         return { finalAnswer };
     } catch (err) {
-        // Fallback response
-        const fallbackAnswer = `Here's what I found:
-
-${queryResult.slice(0, 5).map((row, i) => {
+        const fallbackAnswer = `Here's what I found:\n\n${queryResult.slice(0, 5).map((row, i) => {
             const values = Object.entries(row)
                 .filter(([k]) => k !== 'store_id')
                 .map(([k, v]) => `${k}: ${v}`)
                 .join(', ');
             return `${i + 1}. ${values}`;
-        }).join('\n')}
-
-${queryResult.length > 5 ? `\n... and ${queryResult.length - 5} more results.` : ''}`;
+        }).join('\n')}${queryResult.length > 5 ? `\n\n... and ${queryResult.length - 5} more results.` : ''}`;
 
         conversationContext.addInteraction(
             userQuery,

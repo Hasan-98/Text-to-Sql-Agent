@@ -15,4 +15,5 @@ export const GraphState = Annotation.Root({
     generatedTasks: Annotation(),
     finalAnswer: Annotation(),
     error: Annotation(),
+    sqlBuildMethod: Annotation(), // "deterministic" or "llm_fallback"
 });

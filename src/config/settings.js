@@ -32,5 +32,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export const llm = new ChatOpenAI({
     model: process.env.LLM_MODEL || "gpt-4o-mini",
     temperature: 0,
+    maxTokens: 500,
     openAIApiKey: process.env.OPENAI_API_KEY,
 });
