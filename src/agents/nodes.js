@@ -17,108 +17,97 @@ export async function contextAwareQueryAgent(state) {
     const currentMonth = now.getMonth() + 1;
     const currentDate = now.toISOString().split('T')[0];
 
-    const prompt = `You are a Query Analysis Assistant. Your job is to understand what the user wants from a retail store database.
+    // Compute helper values for few-shot examples
+    const threeMonthsAgo = currentMonth - 2 > 0 ? currentMonth - 2 : 1;
 
-=== SYSTEM TIME ===
-Today's Date: ${currentDate}
-Current Year: ${currentYear}
-Current Month: ${currentMonth}
+    const contextSection = hasContext
+        ? `Previous query: "${conversationContext.lastQuery || ''}"
+Previous stores: ${conversationContext.getRecentStoreNames().slice(0, 5).join(", ") || "none"}
+Follow-up = user says "they/those/these/their stores" or "also show X" for same stores.
+NOT follow-up = user names new filters, stores, or a completely different topic.`
+        : "New conversation, no previous context.";
 
-=== YOUR TASK ===
-Analyze the user's question and extract the key information needed to build a SQL query.
-You must decide if this is a FOLLOW-UP to the previous conversation or a COMPLETELY NEW query path.
+    const prompt = `Analyze this retail database query and return structured JSON.
 
-=== THINKING PROCESS ===
-Follow these steps IN ORDER:
+Table: store_metrics (one row = one store for one month)
+Columns: store_name, store_type (Mall/Street), store_city, store_district, month (1-12), year, order_month (order COUNT, use SUM to total), net_revenue_tl_month, avg_net_order_value_tl, net_revenue_per_m2, store_profit_tl_month, store_profit_ratio_percent, profit_per_m2, cogs_tl_month, personal_cost_tl_month, avg_discount_per_order_tl, avg_discount_percent_per_order, avg_cogs_percent_net_revenue, personal_cost_percent_net_revenue, store_size_m2, monthly_order_per_m2, revenue_per_active_headcount, orders_per_active_headcount, norm_headcount, active_headcount, store_audit_score (0-100), online_rating_score (0-5), competition_online_rating_score, price_index_vs_competition, district_manager_hours_spent, store_uptime_ratio_percent, product_availability_ratio_percent
 
-STEP 1: READ THE QUESTION
-User's Question: "${userQuery}"
+Today: ${currentDate} | Year: ${currentYear} | Month: ${currentMonth}
+${contextSection}
 
-STEP 2: EVALUATE CONTEXT
-${hasContext ? `Previous context is available:
-${contextInfo}
+EXAMPLES:
 
-CRITICAL: Is this a follow-up? 
-- YES if: It uses pronouns (they, them, those, it, these) referring to previous results.
-- YES if: It asks for "more details", "what about manager time", "show ratings too" for the SAME stores.
-- NO if: It specifies a NEW filter (e.g., "now show mall stores", "compare Istanbul stores") that contradicts or replaces previous filters.
-- NO if: The user mentions a DIFFERENT metric or category without referencing the previous ones.
-` : `This is a NEW conversation. No previous context.`}
+Example 1 - No time filter (user didn't mention time):
+Q: "Top 10 stores by revenue"
+A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{},"sorting":"DESC","limit":10,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 10 stores by total revenue"}
 
-STEP 3: IDENTIFY THE METRIC
-What number/measurement does the user want?
-Common mappings:
-- "orders" or "sales count" → order_month (remember: this is a COUNT, use SUM)
-- "revenue" or "sales" or "income" → net_revenue_tl_month
-- "profit" → store_profit_tl_month or store_profit_ratio_percent
-- "efficiency" → orders_per_active_headcount or revenue_per_active_headcount
-- "rating" or "score" → online_rating_score or store_audit_score
-- "availability" → product_availability_ratio_percent
-- "manager time" → district_manager_hours_spent
+Example 2 - With explicit "this year":
+Q: "Top 10 stores by revenue this year"
+A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{"year":${currentYear}},"sorting":"DESC","limit":10,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 10 stores by total revenue this year"}
 
-STEP 4: IDENTIFY FILTERS
-What conditions limit the data?
-- Time: Infer from today's date (${currentDate}).
-  - "last 3 months" means covering ${currentMonth - 2} to ${currentMonth} of ${currentYear} (adjust year if wrapping around Jan).
-  - "this year" means year = ${currentYear}.
-  - "last year" means year = ${currentYear - 1}.
-- Store type: "mall stores" → store_type = 'Mall'
-- Location: "in Istanbul" → store_city = 'Istanbul'
-- Performance: "below average", "worst", "best"
+Example 3 - Follow-up with pronoun (CRITICAL: uses "their" = same stores, NO year filter):
+Previous query: "Top 10 stores by revenue"
+Previous stores: Store A, Store B, Store C
+Q: "What are their audit scores?"
+A: {"metric":"store_audit_score","aggregation":"AVG","filters":{},"sorting":"DESC","limit":100,"isFollowUp":true,"useStoresFromLastQuery":true,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"audit scores for previously discussed stores"}
 
-STEP 5: IDENTIFY SORTING
-- "top", "best", "highest" → ORDER BY ... DESC
-- "bottom", "worst", "lowest" → ORDER BY ... ASC
+Example 4 - Follow-up with "also show" (CRITICAL: same stores, NO year filter):
+Previous query: "Bottom 20 stores by orders"
+Previous stores: Store X, Store Y, Store Z
+Q: "also show their profit margins"
+A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","filters":{},"sorting":"ASC","limit":100,"isFollowUp":true,"useStoresFromLastQuery":true,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"profit margins for previously discussed stores"}
 
-STEP 6: IDENTIFY LIMIT
-- Use EXACTLY what the user asks for.
-- "top 10" → LIMIT 10
-- "top 5" → LIMIT 5
-- If user specifies a number, use that number.
-- "all" or not specified → LIMIT 100 (safety limit).
-- FOLLOW-UP RULE: If this is a follow-up about specific stores from the last query, DO NOT apply a new LIMIT that would cut those stores off.
+Example 5 - Follow-up with "these stores" (CRITICAL: explicit reference, NO year filter):
+Previous query: "Mall stores with low ratings"
+Previous stores: Mall A, Mall B
+Q: "what about manager time for these stores?"
+A: {"metric":"district_manager_hours_spent","aggregation":"AVG","filters":{},"sorting":"DESC","limit":100,"isFollowUp":true,"useStoresFromLastQuery":true,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"manager time for previously discussed stores"}
 
-STEP 7: IS THIS A KPI QUESTION?
-Does the user want analysis/recommendations, not just data?
+Example 6 - With city filter (NO year filter):
+Q: "Bottom 20 stores by orders in Istanbul"
+A: {"metric":"order_month","aggregation":"SUM","filters":{"store_city":"Istanbul"},"sorting":"ASC","limit":20,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"bottom 20 stores by order count in Istanbul"}
 
-=== OUTPUT FORMAT ===
-Respond with ONLY a JSON object (no markdown, no explanation):
+Example 7 - With explicit "last 3 months" (ONLY then use time filter):
+Q: "Average profit margin by store type last 3 months"
+A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","filters":{"year":${currentYear},"month_condition":">= ${threeMonthsAgo}"},"sorting":"DESC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"average profit margin by store type last 3 months"}
 
-{
-    "thinking": "Step-by-step reasoning about whether this is a follow-up or a new query.",
-    "metric": "the main metric column name",
-    "aggregation": "SUM or AVG or COUNT or NONE",
-    "filters": {
-        "year": ${currentYear},
-        "month_condition": "e.g., '>= 10' or 'BETWEEN 1 AND 12' or specific month number or null",
-        "store_names": ["list of specific stores if mentioned"] or null,
-        "store_type": "type if mentioned" or null,
-        "store_city": "city if mentioned" or null,
-        "custom_condition": "any other WHERE condition" or null
-    },
-    "sorting": "DESC or ASC",
-    "limit": number,
-    "isFollowUp": true or false,
-    "useStoresFromLastQuery": true or false,
-    "requiresKPIAnalysis": true or false,
-    "kpiCategory": "revenue" or "profit" or "efficiency" or "quality" or null,
-    "intent": "one sentence describing what user wants"
-}`;
+CRITICAL RULES:
+- DO NOT add year filter unless user explicitly mentions: "this year", "last year", "2024", "last 3 months", etc.
+- If no time period mentioned, use empty filters: "filters":{}
+- For follow-ups: isFollowUp=true AND useStoresFromLastQuery=true IF user says "they/their/them/these/those stores" OR "also show X" OR "what about Y"
+- For follow-ups: keep filters empty {} unless user adds NEW filters
+- When isFollowUp=true, set limit=100 to ensure all previous stores are included
+
+User question: "${userQuery}"
+Respond with ONLY the JSON object, no markdown.`;
 
     try {
         console.log(chalk.gray('\n🧠 Analyzing your question...'));
 
         const response = await llm.invoke(prompt);
-        let analysis = response.content.trim()
-            .replace(/```json\n?/g, "")
-            .replace(/```\n?/g, "")
-            .trim();
+        let analysis = response.content.trim();
+
+        // Remove markdown code blocks
+        analysis = analysis.replace(/```json\n?/g, "");
+        analysis = analysis.replace(/```\n?/g, "");
+        analysis = analysis.trim();
+
+        // Try to extract JSON if there's extra text
+        const jsonMatch = analysis.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            analysis = jsonMatch[0];
+        }
 
         const analyzedQuery = JSON.parse(analysis);
 
         // If it's explicitly NOT a follow-up, clear internal context or flags
         if (!analyzedQuery.isFollowUp) {
             analyzedQuery.useStoresFromLastQuery = false;
+        }
+
+        // Default groupByField if missing
+        if (!analyzedQuery.groupByField) {
+            analyzedQuery.groupByField = "store_name";
         }
 
         console.log(chalk.gray(`   Intent: ${analyzedQuery.intent}`));
@@ -146,6 +135,9 @@ export async function sqlGenerationAgent(state) {
     if (!analyzedQuery) {
         return { error: "Query analysis failed - cannot generate SQL" };
     }
+
+    // Get current year for SQL templates
+    const currentYear = new Date().getFullYear();
 
     const llmWithTools = llm.bindTools([executeSQLTool]);
 
@@ -181,79 +173,56 @@ store_name IN (${storeNames.map(s => `'${s.replace(/'/g, "''")}'`).join(', ')})
 `;
     }
 
-    const prompt = `You are a SQL Query Generator. Your job is to write a correct SQL query.
+    const prompt = `Write a PostgreSQL query for the store_metrics table.
 
 ${correctionSection}
 
-=== DATABASE SCHEMA ===
-${DB_SCHEMA}
+Schema: ${DB_SCHEMA}
 
-=== USER'S QUESTION ===
-"${userQuery}"
-
-=== ANALYSIS OF THE QUESTION ===
-${JSON.stringify(analyzedQuery, null, 2)}
+Question: "${userQuery}"
+Analysis: ${JSON.stringify(analyzedQuery)}
 
 ${storeFilter}
 
-=== STEP-BY-STEP SQL BUILDING ===
+⚠️ CRITICAL: analyzedQuery.filters = ${JSON.stringify(analyzedQuery.filters || {})}
+${!analyzedQuery.filters?.year ? '❌ NO YEAR FILTER - Do NOT add "WHERE year = X" to your SQL!' : `✅ Year filter: ${analyzedQuery.filters.year}`}
 
-Follow these steps to build your query:
+SQL TEMPLATES:
 
-STEP 1: SELECT CLAUSE
-- What columns do I need?
-- Analysis says metric is: "${analyzedQuery.metric}"
-- Do I need to aggregate? Analysis says: "${analyzedQuery.aggregation}"
-- Always include store_name for identification
-- If aggregating, use: SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
+1. Basic query (no year filter unless specified):
+SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
+FROM store_metrics
+${analyzedQuery.filters?.year ? `WHERE year = ${analyzedQuery.filters.year}` : ''}
+GROUP BY store_name
+ORDER BY result_value ${analyzedQuery.sorting}
+LIMIT ${analyzedQuery.limit};
 
-STEP 2: FROM CLAUSE
-- Always: FROM store_metrics
+2. With city/type filter (year only if specified):
+SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
+FROM store_metrics
+WHERE ${analyzedQuery.filters?.year ? `year = ${analyzedQuery.filters.year} AND ` : ''}store_city = '${analyzedQuery.filters?.store_city || 'CITY'}'
+GROUP BY store_name
+ORDER BY result_value ${analyzedQuery.sorting}
+LIMIT ${analyzedQuery.limit};
 
-STEP 3: WHERE CLAUSE
-Build conditions based on:
-- Year filter: ${analyzedQuery.filters?.year ? `year = ${analyzedQuery.filters.year}` : 'not specified'}
-- Month filter: ${analyzedQuery.filters?.month_condition ? `month ${analyzedQuery.filters.month_condition}` : 'not specified'}
-- Store filter: ${analyzedQuery.filters?.store_names ? `store_name IN (...)` : 'not specified'}
-- City filter: ${analyzedQuery.filters?.store_city ? `store_city = '${analyzedQuery.filters.store_city}'` : 'not specified'}
-- Type filter: ${analyzedQuery.filters?.store_type ? `store_type = '${analyzedQuery.filters.store_type}'` : 'not specified'}
-${storeFilter ? '- MUST include store filter from previous query (see above)' : ''}
+3. With month filter (requires year):
+SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
+FROM store_metrics
+WHERE ${analyzedQuery.filters?.year ? `year = ${analyzedQuery.filters.year} AND ` : ''}month ${analyzedQuery.filters?.month_condition || '>= 1'}
+GROUP BY store_name
+ORDER BY result_value ${analyzedQuery.sorting}
+LIMIT ${analyzedQuery.limit};
 
-STEP 4: GROUP BY CLAUSE
-- If using SUM, AVG, or COUNT: MUST include GROUP BY store_name
-- If not aggregating: no GROUP BY needed
+CRITICAL RULES:
+- ⚠️ ONLY add WHERE year = X if analyzedQuery.filters.year exists
+- ⚠️ If analyzedQuery.filters is empty {}, do NOT add ANY year filter
+- If no year filter, either omit WHERE clause or only include other filters
+- ALWAYS use GROUP BY store_name when using SUM/AVG/COUNT
+- order_month is a COUNT per month, use SUM(order_month) for totals
+- Sort: DESC for "top/best/highest", ASC for "bottom/worst/lowest"
+- Use EXACTLY LIMIT ${analyzedQuery.limit}
+${storeFilter ? '- MUST include the store_name IN (...) filter shown above' : ''}
 
-STEP 5: ORDER BY CLAUSE
-- Sorting direction: ${analyzedQuery.sorting}
-- Order by the calculated/aggregated column
-- For "worst/bottom/lowest": use ASC
-- For "best/top/highest": use DESC
-
-STEP 6: LIMIT CLAUSE
-- User requested limit: ${analyzedQuery.limit}
-- Use EXACTLY this number: LIMIT ${analyzedQuery.limit}
-- Do NOT change or reduce this number
-
-=== COMMON MISTAKES TO AVOID ===
-1. ❌ Forgetting GROUP BY when using SUM/AVG
-2. ❌ Using "orders" instead of "order_month"
-3. ❌ Forgetting to aggregate order_month (it's per-month, use SUM for totals)
-4. ❌ Wrong sort order (ASC for worst, DESC for best)
-5. ❌ Missing year/month filters
-6. ❌ Forgot DISTINCT or GROUP BY when the user just wants a list of stores/names without duplicates.
-   - If the user asks for a LIST of stores/cities/types, use: SELECT DISTINCT column_name FROM ...
-   - OR use GROUP BY column_name to avoid seeing the same store 12 times (once for each month).
-
-=== FINAL CHECK ===
-Before executing, verify your SQL has:
-- [ ] SELECT has the right columns
-- [ ] Aggregation matches what user wants
-- [ ] WHERE filters are correct
-- [ ] GROUP BY is present if aggregating
-- [ ] ORDER BY direction is correct (${analyzedQuery.sorting})
-- [ ] LIMIT is EXACTLY ${analyzedQuery.limit} (not less!)
-
-=== ACTION ===
 Now use the execute_sql tool to run your query.`;
 
     try {
@@ -285,15 +254,17 @@ Now use the execute_sql tool to run your query.`;
             }
         } else {
             // Fallback: try to extract SQL from response
-            let sql = response.content.trim()
-                .replace(/```sql\n?/g, "")
-                .replace(/```\n?/g, "")
-                .trim();
+            let sql = response.content.trim();
 
-            // Find the SQL query in the response
-            const sqlMatch = sql.match(/SELECT[\s\S]*?(?:LIMIT\s+\d+|$)/i);
+            // Remove markdown code blocks
+            sql = sql.replace(/```sql\n?/g, "");
+            sql = sql.replace(/```\n?/g, "");
+            sql = sql.trim();
+
+            // Find the SQL query in the response (look for SELECT statement)
+            const sqlMatch = sql.match(/SELECT[\s\S]*?(?:LIMIT\s+\d+|;|$)/i);
             if (sqlMatch) {
-                sql = sqlMatch[0];
+                sql = sqlMatch[0].replace(/;$/, "").trim();
             }
 
             console.log(chalk.blue(`\n📝 Generated SQL (Attempt ${correctionAttempts + 1}):`));
@@ -535,6 +506,11 @@ export async function kpiAnalysisAgent(state) {
 
     const kpiCategory = analyzedQuery.kpiCategory || 'revenue';
     const kpiDef = KPI_DEFINITIONS[kpiCategory];
+
+    if (!kpiDef) {
+        console.log(chalk.yellow(`\n⚠️ Warning: KPI category "${kpiCategory}" not found. Skipping analysis.`));
+        return { kpiAnalysis: null };
+    }
 
     console.log(chalk.yellow(`\n📊 Analyzing ${kpiDef.name}...`));
 
