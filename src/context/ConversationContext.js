@@ -54,7 +54,7 @@ export class ConversationContext {
     updateEntities(analyzedQuery, results) {
         // Track stores mentioned
         if (results && results.length > 0 && results[0].store_name) {
-            this.entities.recentStores = results.slice(0, 20).map(r => ({
+            this.entities.recentStores = results.slice(0, 200).map(r => ({
                 name: r.store_name,
                 id: r.store_id
             }));

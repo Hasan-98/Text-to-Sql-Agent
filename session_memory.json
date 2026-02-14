@@ -263,162 +263,391 @@
       "generatedTasks": null,
       "kpiAnalysis": null,
       "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:36:09.390Z",
+      "userQuery": "what is the worst branch in term of revenue ?",
+      "analyzedQuery": {
+        "metric": "net_revenue_tl_month",
+        "aggregation": "SUM",
+        "filters": {},
+        "sorting": "ASC",
+        "limit": 1,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "worst branch by total revenue",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, SUM(net_revenue_tl_month) as result_value\nFROM store_metrics\nGROUP BY store_name\nORDER BY result_value ASC\nLIMIT 1;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 23170813
+        }
+      ],
+      "finalAnswer": "The branch with the lowest revenue is Bilecik_AVM, which generated a total of 23,170,813 TL this month. \n\nHere are a few key points to consider:\n\n- Bilecik_AVM is currently the lowest performer in terms of revenue among all branches.\n- While the revenue figure is substantial, it may indicate potential areas for improvement compared to other branches.\n\nIf you're looking to enhance performance at Bilecik_AVM, it might be worth investigating factors such as customer footfall, product offerings, or marketing strategies that could be adjusted to boost sales. \n\nLet me know if you’d like to dive deeper into any specific areas or if you need assistance with strategies to improve this branch's performance!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:36:09.393Z",
+      "userQuery": "what is the worst branch in term of revenue ?",
+      "analyzedQuery": {
+        "metric": "net_revenue_tl_month",
+        "aggregation": "SUM",
+        "filters": {},
+        "sorting": "ASC",
+        "limit": 1,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "worst branch by total revenue",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, SUM(net_revenue_tl_month) as result_value\nFROM store_metrics\nGROUP BY store_name\nORDER BY result_value ASC\nLIMIT 1;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 23170813
+        }
+      ],
+      "finalAnswer": "The branch with the lowest revenue is Bilecik_AVM, which generated a total of 23,170,813 TL this month. \n\nHere are a few key points to consider:\n\n- Bilecik_AVM is currently the lowest performer in terms of revenue among all branches.\n- While the revenue figure is substantial, it may indicate potential areas for improvement compared to other branches.\n\nIf you're looking to enhance performance at Bilecik_AVM, it might be worth investigating factors such as customer footfall, product offerings, or marketing strategies that could be adjusted to boost sales. \n\nLet me know if you’d like to dive deeper into any specific areas or if you need assistance with strategies to improve this branch's performance!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:36:56.281Z",
+      "userQuery": "worst branch in term of volume ?",
+      "analyzedQuery": {
+        "metric": "order_month",
+        "aggregation": "SUM",
+        "filters": {},
+        "sorting": "ASC",
+        "limit": 1,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "worst branch by order volume",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, SUM(order_month) as result_value\nFROM store_metrics\nGROUP BY store_name\nORDER BY result_value ASC\nLIMIT 1;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 82175
+        }
+      ],
+      "finalAnswer": "The branch with the lowest volume is Bilecik_AVM, with a total of 82,175 orders. \n\nHere are a few key points to consider:\n\n- Bilecik_AVM is currently underperforming compared to other branches in terms of order volume.\n- This could indicate potential issues with customer engagement or inventory management at this location.\n\nIt might be worth investigating the reasons behind this low volume. Are there specific promotions or marketing efforts that could be improved? Additionally, looking into customer feedback or foot traffic data could provide insights into how to boost performance at this branch.\n\nIf you’d like, I can help you explore strategies to enhance sales at Bilecik_AVM or analyze other branches for comparison. Just let me know!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:36:56.282Z",
+      "userQuery": "worst branch in term of volume ?",
+      "analyzedQuery": {
+        "metric": "order_month",
+        "aggregation": "SUM",
+        "filters": {},
+        "sorting": "ASC",
+        "limit": 1,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "worst branch by order volume",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, SUM(order_month) as result_value\nFROM store_metrics\nGROUP BY store_name\nORDER BY result_value ASC\nLIMIT 1;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 82175
+        }
+      ],
+      "finalAnswer": "The branch with the lowest volume is Bilecik_AVM, with a total of 82,175 orders. \n\nHere are a few key points to consider:\n\n- Bilecik_AVM is currently underperforming compared to other branches in terms of order volume.\n- This could indicate potential issues with customer engagement or inventory management at this location.\n\nIt might be worth investigating the reasons behind this low volume. Are there specific promotions or marketing efforts that could be improved? Additionally, looking into customer feedback or foot traffic data could provide insights into how to boost performance at this branch.\n\nIf you’d like, I can help you explore strategies to enhance sales at Bilecik_AVM or analyze other branches for comparison. Just let me know!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:37:55.250Z",
+      "userQuery": "and how can we improve thse 2 branchs ? and what about audit score of it ? is it good ? ",
+      "analyzedQuery": {
+        "metric": "store_audit_score",
+        "aggregation": "AVG",
+        "filters": {},
+        "sorting": "DESC",
+        "limit": 200,
+        "isFollowUp": true,
+        "useStoresFromLastQuery": true,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "audit scores for previously discussed stores",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, AVG(store_audit_score) as result_value\nFROM store_metrics\nWHERE store_name IN ('Bilecik_AVM')\nGROUP BY store_name\nORDER BY result_value DESC\nLIMIT 200;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 3.433333333333333
+        }
+      ],
+      "finalAnswer": "It looks like the audit score for the Bilecik_AVM branch is 3.43, which is a decent score, but there’s definitely room for improvement. Here are a few key points to consider:\n\n- **Current Audit Score**: The average score of 3.43 suggests that while the branch is performing reasonably well, there are areas that could be enhanced to boost overall performance.\n- **Improvement Opportunities**: Since you mentioned there were issues but the results are still the best, it might be helpful to identify specific areas where the branch is falling short. This could involve looking into customer feedback, staff training, or inventory management.\n\nTo improve the branch, consider conducting a more detailed analysis of the audit results to pinpoint specific weaknesses. Engaging with staff for their insights can also provide valuable perspectives on operational challenges.\n\nIf you’d like, I can help you set up a more comprehensive review or suggest specific metrics to track for ongoing improvement. Let me know how you’d like to proceed!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:37:55.252Z",
+      "userQuery": "and how can we improve thse 2 branchs ? and what about audit score of it ? is it good ? ",
+      "analyzedQuery": {
+        "metric": "store_audit_score",
+        "aggregation": "AVG",
+        "filters": {},
+        "sorting": "DESC",
+        "limit": 200,
+        "isFollowUp": true,
+        "useStoresFromLastQuery": true,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "audit scores for previously discussed stores",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, AVG(store_audit_score) as result_value\nFROM store_metrics\nWHERE store_name IN ('Bilecik_AVM')\nGROUP BY store_name\nORDER BY result_value DESC\nLIMIT 200;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 3.433333333333333
+        }
+      ],
+      "finalAnswer": "It looks like the audit score for the Bilecik_AVM branch is 3.43, which is a decent score, but there’s definitely room for improvement. Here are a few key points to consider:\n\n- **Current Audit Score**: The average score of 3.43 suggests that while the branch is performing reasonably well, there are areas that could be enhanced to boost overall performance.\n- **Improvement Opportunities**: Since you mentioned there were issues but the results are still the best, it might be helpful to identify specific areas where the branch is falling short. This could involve looking into customer feedback, staff training, or inventory management.\n\nTo improve the branch, consider conducting a more detailed analysis of the audit results to pinpoint specific weaknesses. Engaging with staff for their insights can also provide valuable perspectives on operational challenges.\n\nIf you’d like, I can help you set up a more comprehensive review or suggest specific metrics to track for ongoing improvement. Let me know how you’d like to proceed!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:38:32.860Z",
+      "userQuery": "what about actions ?",
+      "analyzedQuery": {
+        "metric": "store_audit_score",
+        "aggregation": "AVG",
+        "filters": {},
+        "sorting": "DESC",
+        "limit": 200,
+        "isFollowUp": true,
+        "useStoresFromLastQuery": true,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "audit scores for previously discussed stores",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, AVG(store_audit_score) as result_value\nFROM store_metrics\nWHERE store_name IN ('Bilecik_AVM')\nGROUP BY store_name\nORDER BY result_value DESC\nLIMIT 200;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 3.433333333333333
+        }
+      ],
+      "finalAnswer": "It looks like you're asking about actions related to store performance. Based on the latest data, here’s what I found for Bilecik_AVM:\n\n- The average store audit score for Bilecik_AVM is approximately 3.43. \n- This score indicates a moderate level of performance, but there may be room for improvement.\n\nSince we only have one store in this query, it’s important to consider what actions can be taken to enhance its performance. Here are a few suggestions:\n\n1. **Identify Improvement Areas**: Review the specific criteria that contribute to the store audit score. This can help pinpoint areas needing attention, such as customer service, inventory management, or store cleanliness.\n\n2. **Staff Training**: If customer service is a factor, consider implementing training sessions for staff to improve their engagement and service quality.\n\n3. **Regular Audits**: Establish a routine for conducting store audits to track progress over time and ensure that improvements are being made.\n\nIf you have any specific areas of concern or would like to dive deeper into the audit criteria, feel free to ask! I'm here to help you enhance your store's performance.",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:38:32.862Z",
+      "userQuery": "what about actions ?",
+      "analyzedQuery": {
+        "metric": "store_audit_score",
+        "aggregation": "AVG",
+        "filters": {},
+        "sorting": "DESC",
+        "limit": 200,
+        "isFollowUp": true,
+        "useStoresFromLastQuery": true,
+        "requiresKPIAnalysis": false,
+        "kpiCategory": null,
+        "intent": "audit scores for previously discussed stores",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, AVG(store_audit_score) as result_value\nFROM store_metrics\nWHERE store_name IN ('Bilecik_AVM')\nGROUP BY store_name\nORDER BY result_value DESC\nLIMIT 200;",
+      "results": [
+        {
+          "store_name": "Bilecik_AVM",
+          "result_value": 3.433333333333333
+        }
+      ],
+      "finalAnswer": "It looks like you're asking about actions related to store performance. Based on the latest data, here’s what I found for Bilecik_AVM:\n\n- The average store audit score for Bilecik_AVM is approximately 3.43. \n- This score indicates a moderate level of performance, but there may be room for improvement.\n\nSince we only have one store in this query, it’s important to consider what actions can be taken to enhance its performance. Here are a few suggestions:\n\n1. **Identify Improvement Areas**: Review the specific criteria that contribute to the store audit score. This can help pinpoint areas needing attention, such as customer service, inventory management, or store cleanliness.\n\n2. **Staff Training**: If customer service is a factor, consider implementing training sessions for staff to improve their engagement and service quality.\n\n3. **Regular Audits**: Establish a routine for conducting store audits to track progress over time and ensure that improvements are being made.\n\nIf you have any specific areas of concern or would like to dive deeper into the audit criteria, feel free to ask! I'm here to help you enhance your store's performance.",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:39:23.570Z",
+      "userQuery": "generate action on how to improve ",
+      "analyzedQuery": {
+        "metric": "action_items",
+        "aggregation": "GENERATE",
+        "filters": {},
+        "sorting": null,
+        "limit": 1,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": true,
+        "kpiCategory": null,
+        "intent": "generate action items for store improvement",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, SUM(order_month) as total_orders\nFROM store_metrics\nGROUP BY store_name\nORDER BY total_orders DESC\nLIMIT 1;",
+      "results": [
+        {
+          "store_name": "Istanbul_Cadde_3",
+          "total_orders": 322574
+        }
+      ],
+      "finalAnswer": "To improve your store's performance, particularly for Istanbul_Cadde_3, here are some actionable insights based on the recent analysis:\n\n- **Strong Order Volume**: Istanbul_Cadde_3 has a total of 322,574 orders, which is impressive and indicates good customer engagement.\n- **Revenue Concerns**: Despite the high order volume, the average net revenue is reported as zero. This suggests there may be significant issues with data collection or reporting rather than actual sales performance.\n- **No Immediate Risks**: There are no stores in critical or warning categories, so overall, the situation isn't dire, but the revenue reporting needs urgent attention.\n\nGiven these findings, here are the key actions to consider:\n\n1. **Investigate Data Collection**: Prioritize reviewing the data collection and reporting processes for Istanbul_Cadde_3. Ensure that all sales transactions are being accurately captured and reported.\n2. **Audit Revenue Reporting**: Conduct an audit of the revenue reporting system to identify any discrepancies or technical issues that may be causing the zero revenue figures.\n\nAddressing these tasks will help clarify the store's actual performance and ensure that the impressive order volume translates into revenue. If you need further assistance or a deeper dive into specific areas, feel free to ask!",
+      "generatedTasks": null,
+      "kpiAnalysis": null,
+      "rootCauseAnalysis": null
+    },
+    {
+      "timestamp": "2026-02-14T12:39:23.572Z",
+      "userQuery": "generate action on how to improve ",
+      "analyzedQuery": {
+        "metric": "action_items",
+        "aggregation": "GENERATE",
+        "filters": {},
+        "sorting": null,
+        "limit": 1,
+        "isFollowUp": false,
+        "useStoresFromLastQuery": false,
+        "requiresKPIAnalysis": true,
+        "kpiCategory": null,
+        "intent": "generate action items for store improvement",
+        "groupByField": "store_name"
+      },
+      "sqlQuery": "SELECT store_name, SUM(order_month) as total_orders\nFROM store_metrics\nGROUP BY store_name\nORDER BY total_orders DESC\nLIMIT 1;",
+      "results": [
+        {
+          "store_name": "Istanbul_Cadde_3",
+          "total_orders": 322574
+        }
+      ],
+      "finalAnswer": "To improve your store's performance, particularly for Istanbul_Cadde_3, here are some actionable insights based on the recent analysis:\n\n- **Strong Order Volume**: Istanbul_Cadde_3 has a total of 322,574 orders, which is impressive and indicates good customer engagement.\n- **Revenue Concerns**: Despite the high order volume, the average net revenue is reported as zero. This suggests there may be significant issues with data collection or reporting rather than actual sales performance.\n- **No Immediate Risks**: There are no stores in critical or warning categories, so overall, the situation isn't dire, but the revenue reporting needs urgent attention.\n\nGiven these findings, here are the key actions to consider:\n\n1. **Investigate Data Collection**: Prioritize reviewing the data collection and reporting processes for Istanbul_Cadde_3. Ensure that all sales transactions are being accurately captured and reported.\n2. **Audit Revenue Reporting**: Conduct an audit of the revenue reporting system to identify any discrepancies or technical issues that may be causing the zero revenue figures.\n\nAddressing these tasks will help clarify the store's actual performance and ensure that the impressive order volume translates into revenue. If you need further assistance or a deeper dive into specific areas, feel free to ask!",
+      "generatedTasks": {
+        "tasks": [
+          {
+            "id": 1,
+            "title": "Audit Data Collection and Reporting Processes",
+            "description": "Conduct a thorough audit of the data collection and reporting processes for the store to identify and rectify any issues causing the zero net revenue report.",
+            "priority": "high",
+            "assignedTo": "Store Manager",
+            "deadline": "2 days from assignment",
+            "expectedOutcome": "Identification and resolution of data collection issues, leading to accurate revenue reporting.",
+            "storesAffected": "Single Store Location"
+          },
+          {
+            "id": 2,
+            "title": "Investigate Product Availability and Stock Levels",
+            "description": "Review current product availability and stock levels to ensure that all items are adequately stocked and available for sale.",
+            "priority": "medium",
+            "assignedTo": "District Manager",
+            "deadline": "1 week from assignment",
+            "expectedOutcome": "Ensured product availability, leading to improved sales performance and accurate revenue reporting.",
+            "storesAffected": "Single Store Location"
+          }
+        ],
+        "summary": {
+          "totalTasks": 2,
+          "highPriority": 1,
+          "mediumPriority": 1,
+          "lowPriority": 0,
+          "estimatedCompletionTime": "1 week"
+        }
+      },
+      "kpiAnalysis": {
+        "thinking": "Analyzing the store performance data reveals that there is only one store in the dataset. The net revenue metrics indicate that this store is performing well, as it falls into the 'Good' category. However, since there is no variation in revenue (all metrics are zero), it raises questions about the reliability of the data.",
+        "healthStatus": "Good",
+        "overallScore": 100,
+        "distribution": {
+          "critical": 0,
+          "warning": 0,
+          "good": 1
+        },
+        "keyFindings": [
+          "Finding 1: The only store, Istanbul_Cadde_3, is classified as 'Good' despite having an average net revenue of 0.00.",
+          "Finding 2: There are no stores in the critical or warning categories, indicating that there are no immediate concerns with revenue performance.",
+          "Finding 3: The lack of revenue data (all metrics are zero) suggests potential issues with data collection or reporting rather than actual store performance."
+        ],
+        "needsRootCause": true,
+        "urgency": "immediate"
+      },
+      "rootCauseAnalysis": {
+        "thinking": "The analysis indicates that the store, Istanbul_Cadde_3, has a good revenue performance score despite reporting zero net revenue. This discrepancy suggests issues with data collection or reporting rather than actual store performance. The investigation will focus on the factors that could affect revenue reporting and performance.",
+        "primaryCauses": [
+          {
+            "factor": "data collection issues",
+            "impact": "high",
+            "affectedStores": "100%",
+            "description": "The store is reporting zero net revenue, which is likely due to problems in data collection or reporting processes rather than actual sales performance.",
+            "evidence": "All revenue metrics are zero despite a high number of total orders (322574), indicating a failure in capturing or reporting revenue data."
+          }
+        ],
+        "secondaryCauses": [
+          {
+            "factor": "product availability ratio",
+            "impact": "medium",
+            "description": "If products are not available for sale, it could lead to missed revenue opportunities, but this is secondary to the primary issue of data reporting."
+          }
+        ],
+        "recommendations": [
+          {
+            "action": "Audit the data collection and reporting processes for the store",
+            "priority": "high",
+            "expectedImpact": "Identify and rectify issues leading to zero revenue reporting, allowing for accurate performance assessment.",
+            "timeline": "1-2 weeks"
+          },
+          {
+            "action": "Investigate product availability and ensure stock levels are adequate",
+            "priority": "medium",
+            "expectedImpact": "Improve potential sales by ensuring products are available for customers.",
+            "timeline": "2-4 weeks"
+          }
+        ]
+      }
     }
   ],
   "entities": {
     "recentStores": [
       {
-        "name": "Giresun_Cadde"
-      },
-      {
-        "name": "Istanbul_Cadde_7"
-      },
-      {
-        "name": "Aksaray_AVM"
-      },
-      {
-        "name": "Karaman_AVM_2"
-      },
-      {
-        "name": "Kars_Cadde"
-      },
-      {
-        "name": "Aydin_AVM_2"
-      },
-      {
-        "name": "Kars_AVM"
-      },
-      {
-        "name": "Elazig_Cadde"
-      },
-      {
-        "name": "Ankara_AVM"
-      },
-      {
-        "name": "Hatay_Cadde"
-      },
-      {
-        "name": "Mugla_Cadde"
-      },
-      {
-        "name": "Yalova_Cadde_2"
-      },
-      {
-        "name": "Istanbul_AVM_25"
-      },
-      {
-        "name": "Istanbul_AVM_23"
-      },
-      {
-        "name": "Istanbul_AVM_29"
-      },
-      {
-        "name": "Samsun_AVM_2"
-      },
-      {
-        "name": "Izmir_AVM"
-      },
-      {
-        "name": "Kutahya_AVM_2"
-      },
-      {
-        "name": "Hakkari_AVM_2"
-      },
-      {
-        "name": "Usak_Cadde_2"
+        "name": "Istanbul_Cadde_3"
       }
     ],
     "discussedMetrics": [
       "profit_per_m2",
       "active_headcount",
-      "avg_discount_percent_per_order"
+      "avg_discount_percent_per_order",
+      "net_revenue_tl_month",
+      "order_month",
+      "store_audit_score",
+      "action_items"
     ],
     "lastTimeFilter": null,
     "lastStoreFilter": null,
     "decisions": []
   },
-  "lastQuery": " What is the discount rate in these branches? Is it higher than the company average? How long has it been at this level?",
+  "lastQuery": "generate action on how to improve ",
   "lastResults": [
     {
-      "store_name": "Giresun_Cadde",
-      "result_value": 13.925333333333333
-    },
-    {
-      "store_name": "Istanbul_Cadde_7",
-      "result_value": 13.816666666666666
-    },
-    {
-      "store_name": "Aksaray_AVM",
-      "result_value": 13.645333333333333
-    },
-    {
-      "store_name": "Karaman_AVM_2",
-      "result_value": 13.416666666666666
-    },
-    {
-      "store_name": "Kars_Cadde",
-      "result_value": 12.698
-    },
-    {
-      "store_name": "Aydin_AVM_2",
-      "result_value": 12.582
-    },
-    {
-      "store_name": "Kars_AVM",
-      "result_value": 12.443333333333333
-    },
-    {
-      "store_name": "Elazig_Cadde",
-      "result_value": 12.284666666666666
-    },
-    {
-      "store_name": "Ankara_AVM",
-      "result_value": 10.193333333333333
-    },
-    {
-      "store_name": "Hatay_Cadde",
-      "result_value": 9.714666666666666
-    },
-    {
-      "store_name": "Mugla_Cadde",
-      "result_value": 9.643333333333333
-    },
-    {
-      "store_name": "Yalova_Cadde_2",
-      "result_value": 9.536666666666667
-    },
-    {
-      "store_name": "Istanbul_AVM_25",
-      "result_value": 9.364666666666666
-    },
-    {
-      "store_name": "Istanbul_AVM_23",
-      "result_value": 8.855333333333334
-    },
-    {
-      "store_name": "Istanbul_AVM_29",
-      "result_value": 6.666
-    },
-    {
-      "store_name": "Samsun_AVM_2",
-      "result_value": 6.530666666666667
-    },
-    {
-      "store_name": "Izmir_AVM",
-      "result_value": 5.417333333333334
-    },
-    {
-      "store_name": "Kutahya_AVM_2",
-      "result_value": 5.01
-    },
-    {
-      "store_name": "Hakkari_AVM_2",
-      "result_value": 4.288
-    },
-    {
-      "store_name": "Usak_Cadde_2",
-      "result_value": 3.768
+      "store_name": "Istanbul_Cadde_3",
+      "total_orders": 322574
     }
   ],
-  "lastSQL": "SELECT store_name, AVG(avg_discount_percent_per_order) as result_value\nFROM store_metrics\nWHERE store_name IN ('Kars_Cadde', 'Elazig_Cadde', 'Istanbul_Cadde_7', 'Mugla_Cadde', 'Izmir_AVM', 'Samsun_AVM_2', 'Istanbul_AVM_23', 'Ankara_AVM', 'Usak_Cadde_2', 'Aksaray_AVM', 'Yalova_Cadde_2', 'Giresun_Cadde', 'Istanbul_AVM_29', 'Kars_AVM', 'Karaman_AVM_2', 'Hatay_Cadde', 'Hakkari_AVM_2', 'Kutahya_AVM_2', 'Aydin_AVM_2', 'Istanbul_AVM_25')\nGROUP BY store_name\nORDER BY result_value DESC\nLIMIT 100;"
+  "lastSQL": "SELECT store_name, SUM(order_month) as total_orders\nFROM store_metrics\nGROUP BY store_name\nORDER BY total_orders DESC\nLIMIT 1;"
 }

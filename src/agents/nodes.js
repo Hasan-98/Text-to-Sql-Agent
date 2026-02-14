@@ -27,6 +27,11 @@ Follow-up = user says "they/those/these/their stores" or "also show X" for same 
 NOT follow-up = user names new filters, stores, or a completely different topic.`
         : "New conversation, no previous context.";
 
+    // Helper to clear time filters if user asks for "different period"
+    const isDifferentPeriodRequest = userQuery.toLowerCase().includes("different period") ||
+        userQuery.toLowerCase().includes("change time") ||
+        userQuery.toLowerCase().includes("other months");
+
     const prompt = `Analyze this retail database query and return structured JSON.
 
 Table: store_metrics (one row = one store for one month)
@@ -75,8 +80,10 @@ CRITICAL RULES:
 - DO NOT add year filter unless user explicitly mentions: "this year", "last year", "2024", "last 3 months", etc.
 - If no time period mentioned, use empty filters: "filters":{}
 - For follow-ups: isFollowUp=true AND useStoresFromLastQuery=true IF user says "they/their/them/these/those stores" OR "also show X" OR "what about Y"
+- For "different period" requests: KEEP useStoresFromLastQuery=true but CLEAR old time filters requiresKPIAnalysis=false
+- Set requiresKPIAnalysis=true if user asks for: "why", "cause", "investigate", "action", "recommendation", "task", "plan", "what should we do"
 - For follow-ups: keep filters empty {} unless user adds NEW filters
-- When isFollowUp=true, set limit=100 to ensure all previous stores are included
+- When isFollowUp=true, set limit=200 to ensure all previous stores are included
 
 User question: "${userQuery}"
 Respond with ONLY the JSON object, no markdown.`;
@@ -164,7 +171,7 @@ IMPORTANT: Generate a DIFFERENT query that fixes these problems!
     // Build store filter if using previous results
     let storeFilter = "";
     if (analyzedQuery?.useStoresFromLastQuery && conversationContext.entities.recentStores.length > 0) {
-        const storeNames = conversationContext.getRecentStoreNames().slice(0, 20);
+        const storeNames = conversationContext.getRecentStoreNames().slice(0, 200);
         storeFilter = `
 === IMPORTANT: FILTER TO THESE SPECIFIC STORES ===
 The user is asking about stores from the previous query.
@@ -514,6 +521,25 @@ export async function kpiAnalysisAgent(state) {
 
     console.log(chalk.yellow(`\n📊 Analyzing ${kpiDef.name}...`));
 
+    // Calculate statistics for the prompt
+    const numericMetrics = kpiDef.metrics.filter(m => typeof queryResult[0]?.[m] === 'number');
+    const primaryMetric = numericMetrics[0] || kpiDef.metrics[0];
+
+    // Compute stats
+    const values = queryResult.map(r => Number(r[primaryMetric]) || 0);
+    const minVal = Math.min(...values);
+    const maxVal = Math.max(...values);
+    const avgVal = values.reduce((a, b) => a + b, 0) / values.length;
+
+    // Compute distribution based on thresholds
+    let critical = 0, warning = 0, good = 0;
+    queryResult.forEach(r => {
+        const val = Number(r[primaryMetric]);
+        if (val < kpiDef.thresholds.critical) critical++;
+        else if (val < kpiDef.thresholds.warning) warning++;
+        else good++;
+    });
+
     const prompt = `You are a Retail KPI Analyst. Analyze the store performance data.
 
 === KPI CATEGORY ===
@@ -526,10 +552,20 @@ Key Metrics: ${kpiDef.metrics.join(', ')}
 - Warning (Yellow): Below ${kpiDef.thresholds.warning}%
 - Good (Green): Above ${kpiDef.thresholds.good}%
 
-=== DATA TO ANALYZE ===
-Number of stores: ${queryResult.length}
-Sample data (first 5 rows):
-${JSON.stringify(queryResult.slice(0, 5), null, 2)}
+=== DATA SUMMARY (${queryResult.length} stores) ===
+Metric: ${primaryMetric}
+- Min: ${minVal.toFixed(2)}
+- Max: ${maxVal.toFixed(2)}
+- Average: ${avgVal.toFixed(2)}
+
+Distribution:
+- Critical: ${critical} stores (${((critical / queryResult.length) * 100).toFixed(1)}%)
+- Warning: ${warning} stores (${((warning / queryResult.length) * 100).toFixed(1)}%)
+- Good: ${good} stores (${((good / queryResult.length) * 100).toFixed(1)}%)
+
+Sample data (first 3 best and 3 worst):
+Top 3: ${JSON.stringify(queryResult.slice(0, 3).map(r => ({ name: r.store_name, val: r[primaryMetric] })), null, 2)}
+Bottom 3: ${JSON.stringify(queryResult.slice(-3).map(r => ({ name: r.store_name, val: r[primaryMetric] })), null, 2)}
 
 === ANALYSIS STEPS ===
 
@@ -538,12 +574,12 @@ STEP 1: OVERALL HEALTH
 - What percentage are in critical/warning/good status?
 
 STEP 2: KEY FINDINGS
-- What patterns do you see?
-- Are there outliers?
-- Any geographic or type-based patterns?
+- What patterns do you see in the distribution?
+- Are the top performing stores significantly better than the average?
+- Is the issue widespread or isolated to a few stores?
 
 STEP 3: ROOT CAUSE NEEDED?
-- If many stores are underperforming, we need to investigate why
+- If many stores are underperforming (high critical/warning %), we need to investigate why
 - Factors to investigate: ${kpiDef.rootCauseFactors.join(', ')}
 
 === OUTPUT FORMAT ===
@@ -608,6 +644,19 @@ export async function rootCauseAgent(state) {
 
     console.log(chalk.yellow(`\n🔍 Investigating root causes...`));
 
+    // Calculate segmentation stats for root cause
+    const byType = {};
+    const byCity = {};
+
+    queryResult.forEach(r => {
+        // Type stats
+        if (!byType[r.store_type]) byType[r.store_type] = { count: 0, sum: 0 };
+        byType[r.store_type].count++;
+        // City stats (top 5 only)
+        if (!byCity[r.store_city]) byCity[r.store_city] = { count: 0 };
+        byCity[r.store_city].count++;
+    });
+
     const prompt = `You are a Retail Operations Analyst. Identify why stores are underperforming.
 
 === CONTEXT ===
@@ -621,8 +670,15 @@ ${kpiAnalysis.keyFindings.map((f, i) => `${i + 1}. ${f}`).join('\n')}
 === FACTORS TO INVESTIGATE ===
 ${kpiDef.rootCauseFactors.map(f => `- ${f}`).join('\n')}
 
-=== STORE DATA ===
+=== STORE SEGMENTATION ===
+By Type: ${JSON.stringify(byType, null, 2)}
+Top Cities by Count: ${JSON.stringify(Object.entries(byCity).sort((a, b) => b[1].count - a[1].count).slice(0, 5), null, 2)}
+
+Sample High Performers (Top 3):
 ${JSON.stringify(queryResult.slice(0, 3), null, 2)}
+
+Sample Low Performers (Bottom 3):
+${JSON.stringify(queryResult.slice(-3), null, 2)}
 
 === ROOT CAUSE ANALYSIS STEPS ===
 
@@ -703,6 +759,12 @@ export async function taskGenerationAgent(state) {
 
     console.log(chalk.yellow(`\n📋 Generating action tasks...`));
 
+    // Extract detailed store info for the prompt
+    let storeContext = `Total Stores: ${queryResult?.length || 0}`;
+    if (rootCauseAnalysis?.primaryCauses?.[0]?.affectedStores) {
+        storeContext += `\nPrimary Issue Impact: ${rootCauseAnalysis.primaryCauses[0].affectedStores}`;
+    }
+
     const prompt = `You are a Retail Operations Manager. Create actionable tasks from the analysis.
 
 === ANALYSIS SUMMARY ===
@@ -715,13 +777,14 @@ ${rootCauseAnalysis.primaryCauses?.map(c => `- ${c.factor}: ${c.description}`).j
 Recommendations:
 ${rootCauseAnalysis.recommendations?.map(r => `- ${r.action} (${r.priority} priority)`).join('\n') || 'None'}
 
-Affected Stores: ${queryResult?.length || 0}
+Affected Stores Context: ${storeContext}
 
 === TASK GENERATION RULES ===
 1. Each task must be specific and actionable
 2. Assign to appropriate role (Store Manager, District Manager, Regional Manager, HR, Operations)
 3. Set realistic deadlines
 4. High priority = 1-2 days, Medium = 1 week, Low = 2 weeks
+5. storesAffected: SHOULD BE DESCRIPTIVE (e.g. "All Mall Stores", "Istanbul Branches", "Low Performing Stores") rather than just a number.
 
 === OUTPUT FORMAT ===
 Respond with ONLY a JSON object:
@@ -736,7 +799,7 @@ Respond with ONLY a JSON object:
             "assignedTo": "Role title",
             "deadline": "specific timeframe",
             "expectedOutcome": "What success looks like",
-            "storesAffected": number or "all"
+            "storesAffected": "Descriptive group of stores"
         }
     ],
     "summary": {

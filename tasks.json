@@ -664,5 +664,43 @@
     "status": "pending",
     "createdAt": "2026-01-23T18:44:28.619Z",
     "sourceQuery": "Find stores where price increase months caused orders drop then recovery within 2 months"
+  },
+  {
+    "id": 1771072763573,
+    "title": "Audit Data Collection and Reporting Processes",
+    "description": "Conduct a thorough audit of the data collection and reporting processes for the store to identify and rectify any issues causing the zero net revenue report.",
+    "priority": "high",
+    "assignedTo": "Store Manager",
+    "deadline": "2 days from assignment",
+    "expectedOutcome": "Identification and resolution of data collection issues, leading to accurate revenue reporting.",
+    "storesAffected": "Single Store Location",
+    "status": "pending",
+    "createdAt": "2026-02-14T12:39:23.573Z",
+    "sourceQuery": "generate action on how to improve ",
+    "city": "All Turkey",
+    "district": "General",
+    "storeName": "Single Store Location Stores",
+    "actionTheme": "Quality Improvement",
+    "responsible": "Store Manager",
+    "date": "2026-02-14"
+  },
+  {
+    "id": 1771072763574,
+    "title": "Investigate Product Availability and Stock Levels",
+    "description": "Review current product availability and stock levels to ensure that all items are adequately stocked and available for sale.",
+    "priority": "medium",
+    "assignedTo": "District Manager",
+    "deadline": "1 week from assignment",
+    "expectedOutcome": "Ensured product availability, leading to improved sales performance and accurate revenue reporting.",
+    "storesAffected": "Single Store Location",
+    "status": "pending",
+    "createdAt": "2026-02-14T12:39:23.573Z",
+    "sourceQuery": "generate action on how to improve ",
+    "city": "All Turkey",
+    "district": "General",
+    "storeName": "Single Store Location Stores",
+    "actionTheme": "Operational Excellence",
+    "responsible": "District Manager",
+    "date": "2026-02-14"
   }
 ]
