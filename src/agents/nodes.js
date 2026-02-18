@@ -18,6 +18,25 @@ export async function contextAwareQueryAgent(state) {
     const currentDate = now.toISOString().split('T')[0];
 
     // Compute helper values for few-shot examples
+    const getDateXMonthsAgo = (x) => {
+        const d = new Date();
+        d.setMonth(d.getMonth() - x + 1);
+        return { month: d.getMonth() + 1, year: d.getFullYear() };
+    };
+
+    const last3 = getDateXMonthsAgo(3);
+    const last5 = getDateXMonthsAgo(5);
+    const last6 = getDateXMonthsAgo(6);
+    const last12 = getDateXMonthsAgo(12);
+
+    const dateReference = `
+REFERENCE DATES (Use these for "last X months"):
+- Last 3 months: Start ${last3.month}/${last3.year} to Now
+- Last 5 months: Start ${last5.month}/${last5.year} to Now
+- Last 6 months: Start ${last6.month}/${last6.year} to Now
+- Last 12 months: Start ${last12.month}/${last12.year} to Now
+`;
+
     const threeMonthsAgo = currentMonth - 2 > 0 ? currentMonth - 2 : 1;
 
     const contextSection = hasContext
@@ -38,6 +57,7 @@ Table: store_metrics (one row = one store for one month)
 Columns: store_name, store_type (Mall/Street), store_city, store_district, month (1-12), year, order_month (order COUNT, use SUM to total), net_revenue_tl_month, avg_net_order_value_tl, net_revenue_per_m2, store_profit_tl_month, store_profit_ratio_percent, profit_per_m2, cogs_tl_month, personal_cost_tl_month, avg_discount_per_order_tl, avg_discount_percent_per_order, avg_cogs_percent_net_revenue, personal_cost_percent_net_revenue, store_size_m2, monthly_order_per_m2, revenue_per_active_headcount, orders_per_active_headcount, norm_headcount, active_headcount, store_audit_score (0-100), online_rating_score (0-5), competition_online_rating_score, price_index_vs_competition, district_manager_hours_spent, store_uptime_ratio_percent, product_availability_ratio_percent
 
 Today: ${currentDate} | Year: ${currentYear} | Month: ${currentMonth}
+${dateReference}
 ${contextSection}
 
 EXAMPLES:
@@ -50,7 +70,11 @@ Example 2 - With explicit "this year":
 Q: "Top 10 stores by revenue this year"
 A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{"year":${currentYear}},"sorting":"DESC","limit":10,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 10 stores by total revenue this year"}
 
-Example 3 - Follow-up with pronoun (CRITICAL: uses "their" = same stores, NO year filter):
+Example 3 - Cross-year "last 5 months" (Assume today is Feb 2026, start is Oct 2025):
+Q: "Top 5 stores by revenue last 5 months"
+A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{"start_year":2025,"start_month":10,"end_year":2026,"end_month":2},"sorting":"DESC","limit":5,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 5 stores by revenue last 5 months form Oct 2025 to Feb 2026"}
+
+Example 4 - Follow-up with pronoun (CRITICAL: uses "their" = same stores, NO year filter):
 Previous query: "Top 10 stores by revenue"
 Previous stores: Store A, Store B, Store C
 Q: "What are their audit scores?"
@@ -74,11 +98,12 @@ A: {"metric":"order_month","aggregation":"SUM","filters":{"store_city":"Istanbul
 
 Example 7 - With explicit "last 3 months" (ONLY then use time filter):
 Q: "Average profit margin by store type last 3 months"
-A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","filters":{"year":${currentYear},"month_condition":">= ${threeMonthsAgo}"},"sorting":"DESC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"average profit margin by store type last 3 months"}
+A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","filters":{"start_year":2025,"start_month":12,"end_year":2026,"end_month":2},"sorting":"DESC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"average profit margin by store type last 3 months"}
 
 CRITICAL RULES:
 - DO NOT add year filter unless user explicitly mentions: "this year", "last year", "2024", "last 3 months", etc.
 - If no time period mentioned, use empty filters: "filters":{}
+- For "last X months": Use the REFERENCE DATES above to set "start_year", "start_month", "end_year", "end_month" in filters.
 - For follow-ups: isFollowUp=true AND useStoresFromLastQuery=true IF user says "they/their/them/these/those stores" OR "also show X" OR "what about Y"
 - For "different period" requests: KEEP useStoresFromLastQuery=true but CLEAR old time filters requiresKPIAnalysis=false
 - Set requiresKPIAnalysis=true if user asks for: "why", "cause", "investigate", "action", "recommendation", "task", "plan", "what should we do"
@@ -192,7 +217,7 @@ Analysis: ${JSON.stringify(analyzedQuery)}
 ${storeFilter}
 
 ⚠️ CRITICAL: analyzedQuery.filters = ${JSON.stringify(analyzedQuery.filters || {})}
-${!analyzedQuery.filters?.year ? '❌ NO YEAR FILTER - Do NOT add "WHERE year = X" to your SQL!' : `✅ Year filter: ${analyzedQuery.filters.year}`}
+${!analyzedQuery.filters?.year && !analyzedQuery.filters?.start_year ? '❌ NO YEAR FILTER - Do NOT add "WHERE year = X" to your SQL!' : `✅ Year filter present`}
 
 SQL TEMPLATES:
 
@@ -212,7 +237,7 @@ GROUP BY store_name
 ORDER BY result_value ${analyzedQuery.sorting}
 LIMIT ${analyzedQuery.limit};
 
-3. With month filter (requires year):
+3. With month filter (Single Year):
 SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
 FROM store_metrics
 WHERE ${analyzedQuery.filters?.year ? `year = ${analyzedQuery.filters.year} AND ` : ''}month ${analyzedQuery.filters?.month_condition || '>= 1'}
@@ -220,10 +245,26 @@ GROUP BY store_name
 ORDER BY result_value ${analyzedQuery.sorting}
 LIMIT ${analyzedQuery.limit};
 
+4. With Cross-Year Date Range (Last X Months):
+IF analyzedQuery.filters has start_year/start_month:
+SELECT store_name, ${analyzedQuery.aggregation}(${analyzedQuery.metric}) as result_value
+FROM store_metrics
+WHERE (
+  (year = [START_YEAR] AND month >= [START_MONTH]) 
+  OR 
+  (year = [END_YEAR] AND month <= [END_MONTH])
+  OR
+  (year > [START_YEAR] AND year < [END_YEAR])
+)
+${storeFilter ? 'AND store_name IN (...)' : ''}
+GROUP BY store_name
+ORDER BY result_value ${analyzedQuery.sorting}
+LIMIT ${analyzedQuery.limit};
+
 CRITICAL RULES:
 - ⚠️ ONLY add WHERE year = X if analyzedQuery.filters.year exists
 - ⚠️ If analyzedQuery.filters is empty {}, do NOT add ANY year filter
-- If no year filter, either omit WHERE clause or only include other filters
+- If start_year != end_year, you MUST use Template 4 with OR logic
 - ALWAYS use GROUP BY store_name when using SUM/AVG/COUNT
 - order_month is a COUNT per month, use SUM(order_month) for totals
 - Sort: DESC for "top/best/highest", ASC for "bottom/worst/lowest"
