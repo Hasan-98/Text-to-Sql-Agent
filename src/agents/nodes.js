@@ -12,29 +12,38 @@ export async function contextAwareQueryAgent(state) {
     const contextInfo = conversationContext.getContextForPrompt();
     const hasContext = conversationContext.hasContext();
 
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth() + 1;
-    const currentDate = now.toISOString().split('T')[0];
+    // ⚠️ DATA CUTOFF: The database only has data up to March 2025.
+    // All "last X months" calculations are relative to this cutoff, NOT today's date.
+    const DATA_CUTOFF_YEAR = 2025;
+    const DATA_CUTOFF_MONTH = 3; // March
+    const currentYear = DATA_CUTOFF_YEAR;
+    const currentMonth = DATA_CUTOFF_MONTH;
+    const currentDate = `${DATA_CUTOFF_YEAR}-03-31`;
 
-    // Compute helper values for few-shot examples
+    // Compute helper values for few-shot examples relative to data cutoff
     const getDateXMonthsAgo = (x) => {
-        const d = new Date();
-        d.setMonth(d.getMonth() - x + 1);
-        return { month: d.getMonth() + 1, year: d.getFullYear() };
+        // Start from the cutoff month and go back (x - 1) months
+        let m = DATA_CUTOFF_MONTH - (x - 1);
+        let y = DATA_CUTOFF_YEAR;
+        while (m <= 0) {
+            m += 12;
+            y -= 1;
+        }
+        return { month: m, year: y };
     };
 
-    const last3 = getDateXMonthsAgo(3);
-    const last5 = getDateXMonthsAgo(5);
-    const last6 = getDateXMonthsAgo(6);
-    const last12 = getDateXMonthsAgo(12);
+    const last3 = getDateXMonthsAgo(3);  // Jan 2025
+    const last5 = getDateXMonthsAgo(5);  // Nov 2024
+    const last6 = getDateXMonthsAgo(6);  // Oct 2024
+    const last12 = getDateXMonthsAgo(12); // Apr 2024
 
     const dateReference = `
-REFERENCE DATES (Use these for "last X months"):
-- Last 3 months: Start ${last3.month}/${last3.year} to Now
-- Last 5 months: Start ${last5.month}/${last5.year} to Now
-- Last 6 months: Start ${last6.month}/${last6.year} to Now
-- Last 12 months: Start ${last12.month}/${last12.year} to Now
+IMPORTANT: The most recent data available is March 2025. Treat March 2025 as "now" for all time calculations.
+REFERENCE DATES (Use these for "last X months", relative to data cutoff March 2025):
+- Last 3 months: Start ${last3.month}/${last3.year} to ${DATA_CUTOFF_MONTH}/${DATA_CUTOFF_YEAR} (Jan 2025 – Mar 2025)
+- Last 5 months: Start ${last5.month}/${last5.year} to ${DATA_CUTOFF_MONTH}/${DATA_CUTOFF_YEAR} (Nov 2024 – Mar 2025)
+- Last 6 months: Start ${last6.month}/${last6.year} to ${DATA_CUTOFF_MONTH}/${DATA_CUTOFF_YEAR} (Oct 2024 – Mar 2025)
+- Last 12 months: Start ${last12.month}/${last12.year} to ${DATA_CUTOFF_MONTH}/${DATA_CUTOFF_YEAR} (Apr 2024 – Mar 2025)
 `;
 
     const threeMonthsAgo = currentMonth - 2 > 0 ? currentMonth - 2 : 1;
@@ -70,9 +79,9 @@ Example 2 - With explicit "this year":
 Q: "Top 10 stores by revenue this year"
 A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{"year":${currentYear}},"sorting":"DESC","limit":10,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 10 stores by total revenue this year"}
 
-Example 3 - Cross-year "last 5 months" (Assume today is Feb 2026, start is Oct 2025):
+Example 3 - Cross-year "last 5 months" (Data cutoff is March 2025, so last 5 months = Nov 2024 to Mar 2025):
 Q: "Top 5 stores by revenue last 5 months"
-A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{"start_year":2025,"start_month":10,"end_year":2026,"end_month":2},"sorting":"DESC","limit":5,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 5 stores by revenue last 5 months form Oct 2025 to Feb 2026"}
+A: {"metric":"net_revenue_tl_month","aggregation":"SUM","filters":{"start_year":2024,"start_month":11,"end_year":2025,"end_month":3},"sorting":"DESC","limit":5,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"top 5 stores by revenue last 5 months from Nov 2024 to Mar 2025"}
 
 Example 4 - Follow-up with pronoun (CRITICAL: uses "their" = same stores, NO year filter):
 Previous query: "Top 10 stores by revenue"
@@ -96,9 +105,9 @@ Example 6 - With city filter (NO year filter):
 Q: "Bottom 20 stores by orders in Istanbul"
 A: {"metric":"order_month","aggregation":"SUM","filters":{"store_city":"Istanbul"},"sorting":"ASC","limit":20,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"bottom 20 stores by order count in Istanbul"}
 
-Example 7 - With explicit "last 3 months" (ONLY then use time filter):
+Example 7 - With explicit "last 3 months" (Data cutoff is March 2025, so last 3 months = Jan 2025 to Mar 2025):
 Q: "Average profit margin by store type last 3 months"
-A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","filters":{"start_year":2025,"start_month":12,"end_year":2026,"end_month":2},"sorting":"DESC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"average profit margin by store type last 3 months"}
+A: {"metric":"store_profit_ratio_percent","aggregation":"AVG","filters":{"start_year":2025,"start_month":1,"end_year":2025,"end_month":3},"sorting":"DESC","limit":100,"isFollowUp":false,"useStoresFromLastQuery":false,"requiresKPIAnalysis":false,"kpiCategory":null,"intent":"average profit margin by store type last 3 months from Jan 2025 to Mar 2025"}
 
 CRITICAL RULES:
 - DO NOT add year filter unless user explicitly mentions: "this year", "last year", "2024", "last 3 months", etc.
@@ -168,8 +177,8 @@ export async function sqlGenerationAgent(state) {
         return { error: "Query analysis failed - cannot generate SQL" };
     }
 
-    // Get current year for SQL templates
-    const currentYear = new Date().getFullYear();
+    // Data cutoff: March 2025 — use this instead of the live system date
+    const currentYear = 2025;
 
     const llmWithTools = llm.bindTools([executeSQLTool]);
 
