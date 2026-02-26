@@ -24,17 +24,17 @@ const SUPABASE_ANON_KEY =
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Using a smaller model to demonstrate compatibility
-const llm = new ChatOpenAI({
-    model: process.env.LLM_MODEL || "gpt-4o-mini",
-    temperature: 0,
-    openAIApiKey: process.env.OPENAI_API_KEY,
-});
-// const llm = new ChatAnthropic({
-//     // model: "claude-opus-4-20250514",
-//     model: "claude-sonnet-4-5-20250929",
+// const llm = new ChatOpenAI({
+//     model: process.env.LLM_MODEL || "gpt-4o-mini",
 //     temperature: 0,
-//     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+//     openAIApiKey: process.env.OPENAI_API_KEY,
 // });
+const llm = new ChatAnthropic({
+    model: "claude-opus-4-20250514",
+    //model: "claude-sonnet-4-5-20250929",
+    temperature: 0,
+    anthropicApiKey: process.env.ANTHROPIC_API_KEY,
+});
 
 // const llm = new ChatOpenAI({
 //     model: "anthropic/claude-3-haiku",

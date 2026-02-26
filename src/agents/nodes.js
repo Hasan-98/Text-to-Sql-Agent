@@ -119,8 +119,37 @@ CRITICAL RULES:
 - For follow-ups: keep filters empty {} unless user adds NEW filters
 - When isFollowUp=true, set limit=200 to ensure all previous stores are included
 
+AMBIGUITY DETECTION:
+Set "isAmbiguous": true if the user's question does NOT clearly specify any metric. This means:
+- No mention of: revenue, sales, orders, profit, margin, efficiency, rating, score, audit, availability, headcount, discount, cost, manager time, uptime
+- Query is too generic: "how are stores doing?", "show me stores", "give me a report", "what's happening?", "which stores are bad?", "tell me about performance"
+- When isAmbiguous is true, set clarificationQuestion to a helpful question asking what metric to look at.
+- Example clarificationQuestion: "I'd be happy to help! Which metric would you like to analyze? Options: revenue, order count, profit margin, audit score, customer rating, efficiency, or staff headcount."
+- If isAmbiguous is true, you can leave metric/filters/etc as safe defaults — they won't be used.
+
+CHART DETECTION:
+If the user requests a chart/graph/plot/visualization (e.g., "bar chart", "line graph", "pie chart", "plot revenue", "visualize orders"), set "chartType" to "bar", "line", or "pie". Otherwise set to null.
+
 User question: "${userQuery}"
-Respond with ONLY the JSON object, no markdown.`;
+Respond with ONLY a JSON object:
+{
+  "metric": "column_name",
+  "aggregation": "SUM/AVG/COUNT",
+  "filters": {"year": 2024, ...},
+  "sorting": "DESC/ASC",
+  "limit": number,
+  "isFollowUp": boolean,
+  "useStoresFromLastQuery": boolean,
+  "requiresKPIAnalysis": boolean,
+  "kpiCategory": string or null,
+  "intent": "describer",
+  "isAmbiguous": boolean,
+  "clarificationQuestion": string or null,
+  "chartType": "bar" | "line" | "pie" | null,
+  "chartX": "column_name for X axis (usually store_name)",
+  "chartY": "column_name for Y axis",
+  "chartTitle": "Title for the chart"
+}`;
 
     try {
         console.log(chalk.gray('\n🧠 Analyzing your question...'));
@@ -154,16 +183,47 @@ Respond with ONLY the JSON object, no markdown.`;
         console.log(chalk.gray(`   Intent: ${analyzedQuery.intent}`));
         console.log(chalk.gray(`   Metric: ${analyzedQuery.metric}`));
         console.log(chalk.gray(`   Follow-up: ${analyzedQuery.isFollowUp ? 'Yes' : 'No'}`));
+        if (analyzedQuery.isAmbiguous) {
+            console.log(chalk.yellow(`   ⚠️ Ambiguous query detected`));
+        }
+        if (analyzedQuery.chartType) {
+            console.log(chalk.cyan(`   📊 Chart requested: ${analyzedQuery.chartType}`));
+        }
+
+        // Build chartConfig if a chart was requested
+        const chartConfig = analyzedQuery.chartType ? {
+            type: analyzedQuery.chartType,
+            xKey: analyzedQuery.chartX || 'store_name',
+            yKey: analyzedQuery.chartY || 'result_value',
+            title: analyzedQuery.chartTitle || `${analyzedQuery.metric} by store`
+        } : null;
 
         return {
             analyzedQuery,
             conversationContext: contextInfo,
-            correctionAttempts: state.correctionAttempts || 0
+            correctionAttempts: state.correctionAttempts || 0,
+            isAmbiguous: analyzedQuery.isAmbiguous || false,
+            clarificationQuestion: analyzedQuery.clarificationQuestion || null,
+            chartConfig
         };
     } catch (err) {
         console.log(chalk.red(`   Error parsing analysis: ${err.message}`));
         return { error: `Query Understanding Error: ${err.message}` };
     }
+}
+
+// ================================
+// AGENT 0: AMBIGUITY HANDLER (short-circuit)
+// ================================
+export async function ambiguityHandlerAgent(state) {
+    const { clarificationQuestion } = state;
+    console.log(chalk.yellow(`\n❓ Asking for clarification...`));
+    const question = clarificationQuestion ||
+        "I'd be happy to help! Which metric would you like to analyze? You can ask about revenue, order count, profit margin, audit score, customer rating, operational efficiency, or staff headcount.";
+    return {
+        finalAnswer: question,
+        isAmbiguous: true
+    };
 }
 
 

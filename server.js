@@ -75,6 +75,19 @@ app.post("/api/chat", async (req, res) => {
 
         const result = await agent.invoke(inputs);
 
+        // If the query was ambiguous, return only the clarification question — no tasks or context saved
+        if (result.isAmbiguous) {
+            return res.json({
+                finalAnswer: result.finalAnswer,
+                isAmbiguous: true,
+                chartConfig: null,
+                queryResult: null,
+                generatedTasks: null,
+                kpiAnalysis: null,
+                rootCauseAnalysis: null
+            });
+        }
+
         // Update conversation context
         conversationContext.addInteraction(
             message,
@@ -112,11 +125,17 @@ app.post("/api/chat", async (req, res) => {
             result.generatedTasks.tasks = newTasks;
         }
 
-        res.json(result);
+        // Attach chartConfig to the response for the frontend to render
+        res.json({
+            ...result,
+            chartConfig: result.chartConfig || null,
+            isAmbiguous: false
+        });
     } catch (err) {
         console.error("Agent Error:", err);
         res.status(500).json({ error: err.message });
     }
+
 });
 
 // 1b. Clear Context Endpoint

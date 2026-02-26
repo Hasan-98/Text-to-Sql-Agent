@@ -1,7 +1,117 @@
 import React, { useState, useEffect, useRef } from 'react';
+import {
+  BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import './index.css';
 
 const API_URL = 'http://localhost:3001/api';
+
+// ==========================
+// Chart color palette
+// ==========================
+const CHART_COLORS = ['#6366f1', '#22d3ee', '#f59e0b', '#34d399', '#f87171', '#a78bfa', '#fb923c', '#38bdf8'];
+
+const formatValue = (val) => {
+  if (typeof val !== 'number') return val;
+  if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+  if (val >= 1_000) return `${(val / 1_000).toFixed(1)}K`;
+  return val % 1 === 0 ? val.toLocaleString() : val.toFixed(2);
+};
+
+function ChartRenderer({ data, chartConfig }) {
+  if (!data || !chartConfig || data.length === 0) return null;
+  let { type, xKey, yKey, title } = chartConfig;
+
+  // Auto-detect keys if the provided ones are missing in the data
+  const firstRow = data[0];
+  const keys = Object.keys(firstRow);
+
+  // If xKey missing or not in data, find first string/categorical column
+  if (!xKey || !keys.includes(xKey)) {
+    xKey = keys.find(k => typeof firstRow[k] === 'string') || keys[0];
+  }
+
+  // If yKey missing or not in data, find first numeric column
+  if (!yKey || !keys.includes(yKey)) {
+    yKey = keys.find(k => typeof firstRow[k] === 'number') || keys[1] || keys[0];
+  }
+
+  // Ensure y values are numbers and prepare data
+  const chartData = data.map(row => ({
+    ...row,
+    [yKey]: Number(row[yKey]) || 0
+  }));
+
+  const containerStyle = { width: '100%', height: 300, marginTop: 12, marginBottom: 8 };
+  const tickStyle = { fill: '#94a3b8', fontSize: 11 };
+  const tooltipStyle = { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 };
+
+  if (type === 'pie') {
+    return (
+      <div className="chart-container">
+        {title && <div className="chart-title">{title}</div>}
+        <ResponsiveContainer style={containerStyle}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey={yKey}
+              nameKey={xKey}
+              cx="50%"
+              cy="50%"
+              outerRadius={110}
+              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
+              labelLine={false}
+            >
+              {chartData.map((_, i) => (
+                <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={formatValue} contentStyle={tooltipStyle} />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
+  if (type === 'line') {
+    return (
+      <div className="chart-container">
+        {title && <div className="chart-title">{title}</div>}
+        <ResponsiveContainer style={containerStyle}>
+          <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+            <XAxis dataKey={xKey} tick={tickStyle} angle={-35} textAnchor="end" interval={0} />
+            <YAxis tick={tickStyle} tickFormatter={formatValue} />
+            <Tooltip formatter={formatValue} contentStyle={tooltipStyle} />
+            <Line type="monotone" dataKey={yKey} stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    );
+  }
+
+  // Default: bar chart
+  return (
+    <div className="chart-container">
+      {title && <div className="chart-title">{title}</div>}
+      <ResponsiveContainer style={containerStyle}>
+        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <XAxis dataKey={xKey} tick={tickStyle} angle={-35} textAnchor="end" interval={0} />
+          <YAxis tick={tickStyle} tickFormatter={formatValue} />
+          <Tooltip formatter={formatValue} contentStyle={tooltipStyle} />
+          <Bar dataKey={yKey} radius={[4, 4, 0, 0]}>
+            {chartData.map((_, i) => (
+              <Cell key={`bar-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -293,91 +403,106 @@ function App() {
                     <div>{msg.text}</div>
                   ) : (
                     <div className="agent-response">
-                      <p className="final-answer">{msg.finalAnswer}</p>
-
-                      {/* KPI Analysis Card */}
-                      {msg.kpiAnalysis && (
-                        <div className="kpi-card">
-                          <div className="card-header">
-                            <span>{getHealthEmoji(msg.kpiAnalysis.healthStatus)} KPI Health: {msg.kpiAnalysis.healthStatus}</span>
-                            <span className="score">Score: {msg.kpiAnalysis.overallScore}/100</span>
-                          </div>
-                          <div className="kpi-findings">
-                            {msg.kpiAnalysis.keyFindings?.map((f, i) => (
-                              <div key={i} className="finding-item">• {f}</div>
-                            ))}
-                          </div>
+                      {/* Ambiguous query — show as question bubble */}
+                      {msg.isAmbiguous ? (
+                        <div className="clarification-bubble">
+                          <span className="clarification-icon">💬</span>
+                          <p>{msg.finalAnswer}</p>
                         </div>
-                      )}
+                      ) : (
+                        <>
+                          <p className="final-answer">{msg.finalAnswer}</p>
 
-                      {/* Root Cause Analysis Card */}
-                      {msg.rootCauseAnalysis && (
-                        <div className="root-cause-card">
-                          <div className="card-header">Root Cause Investigation</div>
-                          <div className="causes-list">
-                            {msg.rootCauseAnalysis.primaryCauses?.map((cause, i) => (
-                              <div key={i} className="cause-item">
-                                <span className={`impact-badge ${cause.impact}`}>{cause.impact}</span>
-                                <strong>{cause.factor}:</strong> {cause.description}
+                          {/* Chart */}
+                          {msg.chartConfig && msg.queryResult && (
+                            <ChartRenderer data={msg.queryResult} chartConfig={msg.chartConfig} />
+                          )}
+
+                          {/* KPI Analysis Card */}
+                          {msg.kpiAnalysis && (
+                            <div className="kpi-card">
+                              <div className="card-header">
+                                <span>{getHealthEmoji(msg.kpiAnalysis.healthStatus)} KPI Health: {msg.kpiAnalysis.healthStatus}</span>
+                                <span className="score">Score: {msg.kpiAnalysis.overallScore}/100</span>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {msg.queryResult && msg.queryResult.length > 0 && (
-                        <div className="table-container">
-                          <div className="table-header-row">
-                            <span>Query Results ({msg.queryResult.length} rows)</span>
-                            {msg.queryResult.length > 5 && (
-                              <button className="view-toggle" onClick={() => toggleTable(idx)}>
-                                {expandedTables[idx] ? 'Show Less' : 'View All'}
-                              </button>
-                            )}
-                          </div>
-                          <table>
-                            <thead>
-                              <tr>
-                                {Object.keys(msg.queryResult[0]).map(key => <th key={key}>{key}</th>)}
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(expandedTables[idx] ? msg.queryResult : msg.queryResult.slice(0, 5)).map((row, i) => (
-                                <tr key={i}>
-                                  {Object.values(row).map((val, j) => <td key={j}>{typeof val === 'number' ? (val % 1 === 0 ? val.toLocaleString() : val.toFixed(2)) : val}</td>)}
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      )}
-
-                      {msg.generatedTasks && msg.generatedTasks.tasks && (
-                        <div className="tasks-container">
-                          <div className="section-title"> Action Tasks</div>
-                          {msg.generatedTasks.tasks.map(task => (
-                            <div key={task.id} className="task-item">
-                              <div className="task-header">
-                                <span className={`priority-tag ${task.priority}`}>{task.priority}</span>
-                                <strong>{task.title}</strong>
-                              </div>
-                              <div className="task-desc">{task.description}</div>
-                              <div className="task-meta">Assigned to: {task.assignedTo} | Deadline: {task.deadline}</div>
-                              <div className="task-actions">
-                                {(!task.status || task.status === 'pending') ? (
-                                  <>
-                                    <button className="btn-ok" onClick={() => handleTaskAction(idx, task.id, 'approved')}>Approve</button>
-                                    <button className="btn-reject" onClick={() => handleTaskAction(idx, task.id, 'rejected')}>Ignore</button>
-                                  </>
-                                ) : (
-                                  <span className={`status-badge ${task.status}`}>
-                                    {task.status === 'approved' ? 'Approved' : 'Ignored'}
-                                  </span>
-                                )}
+                              <div className="kpi-findings">
+                                {msg.kpiAnalysis.keyFindings?.map((f, i) => (
+                                  <div key={i} className="finding-item">• {f}</div>
+                                ))}
                               </div>
                             </div>
-                          ))}
-                        </div>
+                          )}
+
+                          {/* Root Cause Analysis Card */}
+                          {msg.rootCauseAnalysis && (
+                            <div className="root-cause-card">
+                              <div className="card-header">Root Cause Investigation</div>
+                              <div className="causes-list">
+                                {msg.rootCauseAnalysis.primaryCauses?.map((cause, i) => (
+                                  <div key={i} className="cause-item">
+                                    <span className={`impact-badge ${cause.impact}`}>{cause.impact}</span>
+                                    <strong>{cause.factor}:</strong> {cause.description}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {msg.queryResult && msg.queryResult.length > 0 && (
+                            <div className="table-container">
+                              <div className="table-header-row">
+                                <span>Query Results ({msg.queryResult.length} rows)</span>
+                                {msg.queryResult.length > 5 && (
+                                  <button className="view-toggle" onClick={() => toggleTable(idx)}>
+                                    {expandedTables[idx] ? 'Show Less' : 'View All'}
+                                  </button>
+                                )}
+                              </div>
+                              <table>
+                                <thead>
+                                  <tr>
+                                    {Object.keys(msg.queryResult[0]).map(key => <th key={key}>{key}</th>)}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(expandedTables[idx] ? msg.queryResult : msg.queryResult.slice(0, 5)).map((row, i) => (
+                                    <tr key={i}>
+                                      {Object.values(row).map((val, j) => <td key={j}>{typeof val === 'number' ? (val % 1 === 0 ? val.toLocaleString() : val.toFixed(2)) : val}</td>)}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+
+                          {msg.generatedTasks && msg.generatedTasks.tasks && (
+                            <div className="tasks-container">
+                              <div className="section-title"> Action Tasks</div>
+                              {msg.generatedTasks.tasks.map(task => (
+                                <div key={task.id} className="task-item">
+                                  <div className="task-header">
+                                    <span className={`priority-tag ${task.priority}`}>{task.priority}</span>
+                                    <strong>{task.title}</strong>
+                                  </div>
+                                  <div className="task-desc">{task.description}</div>
+                                  <div className="task-meta">Assigned to: {task.assignedTo} | Deadline: {task.deadline}</div>
+                                  <div className="task-actions">
+                                    {(!task.status || task.status === 'pending') ? (
+                                      <>
+                                        <button className="btn-ok" onClick={() => handleTaskAction(idx, task.id, 'approved')}>Approve</button>
+                                        <button className="btn-reject" onClick={() => handleTaskAction(idx, task.id, 'rejected')}>Ignore</button>
+                                      </>
+                                    ) : (
+                                      <span className={`status-badge ${task.status}`}>
+                                        {task.status === 'approved' ? 'Approved' : 'Ignored'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

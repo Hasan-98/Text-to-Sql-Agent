@@ -15,4 +15,9 @@ export const GraphState = Annotation.Root({
     generatedTasks: Annotation(),
     finalAnswer: Annotation(),
     error: Annotation(),
+    // Ambiguity detection
+    isAmbiguous: Annotation(),          // true if query lacks a clear metric
+    clarificationQuestion: Annotation(), // the question to ask the user
+    // Chart rendering
+    chartConfig: Annotation(),          // { type, xKey, yKey, title } or null
 });

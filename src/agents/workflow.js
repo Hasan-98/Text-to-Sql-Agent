@@ -1,6 +1,7 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { GraphState } from "./state.js";
 import {
+    ambiguityHandlerAgent,
     contextAwareQueryAgent,
     sqlGenerationAgent,
     validationAgent,
@@ -11,7 +12,16 @@ import {
     correctionDecision
 } from "./nodes.js";
 
+// Decision function: should we short-circuit for ambiguity?
+function ambiguityDecision(state) {
+    if (state.isAmbiguous) {
+        return "clarify";
+    }
+    return "continue";
+}
+
 const workflow = new StateGraph(GraphState)
+    .addNode("agent_0_clarify", ambiguityHandlerAgent)
     .addNode("agent_1_context", contextAwareQueryAgent)
     .addNode("agent_2_sql", sqlGenerationAgent)
     .addNode("agent_3_validation", validationAgent)
@@ -20,7 +30,15 @@ const workflow = new StateGraph(GraphState)
     .addNode("agent_6_tasks", taskGenerationAgent)
     .addNode("agent_7_presentation", resultPresentationAgent)
     .addEdge(START, "agent_1_context")
-    .addEdge("agent_1_context", "agent_2_sql")
+    .addConditionalEdges(
+        "agent_1_context",
+        ambiguityDecision,
+        {
+            clarify: "agent_0_clarify",
+            continue: "agent_2_sql"
+        }
+    )
+    .addEdge("agent_0_clarify", END)
     .addEdge("agent_2_sql", "agent_3_validation")
     .addConditionalEdges(
         "agent_3_validation",
@@ -36,3 +54,4 @@ const workflow = new StateGraph(GraphState)
     .addEdge("agent_7_presentation", END);
 
 export const app = workflow.compile();
+
