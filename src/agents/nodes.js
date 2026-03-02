@@ -48,12 +48,7 @@ REFERENCE DATES (Use these for "last X months", relative to data cutoff March 20
 
     const threeMonthsAgo = currentMonth - 2 > 0 ? currentMonth - 2 : 1;
 
-    const contextSection = hasContext
-        ? `Previous query: "${conversationContext.lastQuery || ''}"
-Previous stores: ${conversationContext.getRecentStoreNames().slice(0, 5).join(", ") || "none"}
-Follow-up = user says "they/those/these/their stores" or "also show X" for same stores.
-NOT follow-up = user names new filters, stores, or a completely different topic.`
-        : "New conversation, no previous context.";
+    // contextInfo already contains full multi-turn history from getContextForPrompt()
 
     // Helper to clear time filters if user asks for "different period"
     const isDifferentPeriodRequest = userQuery.toLowerCase().includes("different period") ||
@@ -67,7 +62,7 @@ Columns: store_name, store_type (Mall/Street), store_city, store_district, month
 
 Today: ${currentDate} | Year: ${currentYear} | Month: ${currentMonth}
 ${dateReference}
-${contextSection}
+${contextInfo}
 
 EXAMPLES:
 

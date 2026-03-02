@@ -23,54 +23,78 @@ function ChartRenderer({ data, chartConfig }) {
   if (!data || !chartConfig || data.length === 0) return null;
   let { type, xKey, yKey, title } = chartConfig;
 
-  // Auto-detect keys if the provided ones are missing in the data
   const firstRow = data[0];
   const keys = Object.keys(firstRow);
 
-  // If xKey missing or not in data, find first string/categorical column
   if (!xKey || !keys.includes(xKey)) {
     xKey = keys.find(k => typeof firstRow[k] === 'string') || keys[0];
   }
-
-  // If yKey missing or not in data, find first numeric column
   if (!yKey || !keys.includes(yKey)) {
     yKey = keys.find(k => typeof firstRow[k] === 'number') || keys[1] || keys[0];
   }
 
-  // Ensure y values are numbers and prepare data
   const chartData = data.map(row => ({
     ...row,
     [yKey]: Number(row[yKey]) || 0
   }));
 
-  const containerStyle = { width: '100%', height: 300, marginTop: 12, marginBottom: 8 };
-  const tickStyle = { fill: '#94a3b8', fontSize: 11 };
-  const tooltipStyle = { backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8 };
+  const tickStyle = { fill: '#64748b', fontSize: 11, fontFamily: 'Inter, system-ui, sans-serif' };
+  const tooltipStyle = {
+    backgroundColor: '#0f172a',
+    border: '1px solid rgba(99,102,241,0.45)',
+    borderRadius: 10,
+    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+    fontSize: 12,
+  };
+  const tooltipLabelStyle = { color: '#f1f5f9', marginBottom: 4, fontWeight: 600 };
+  const tooltipItemStyle = { color: '#e2e8f0' };
+
+  const typeIcons = { bar: '▊', line: '↗', pie: '◕' };
+  const typeIcon = typeIcons[type] || '▊';
+
+  const ChartHeader = () => (
+    <div className="chart-header">
+      <span className="chart-type-badge">{typeIcon}</span>
+      {title && <span className="chart-title">{title}</span>}
+    </div>
+  );
 
   if (type === 'pie') {
     return (
       <div className="chart-container">
-        {title && <div className="chart-title">{title}</div>}
-        <ResponsiveContainer style={containerStyle}>
-          <PieChart>
-            <Pie
-              data={chartData}
-              dataKey={yKey}
-              nameKey={xKey}
-              cx="50%"
-              cy="50%"
-              outerRadius={110}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-              labelLine={false}
-            >
-              {chartData.map((_, i) => (
-                <Cell key={`cell-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip formatter={formatValue} contentStyle={tooltipStyle} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+        <ChartHeader />
+        <div className="chart-body">
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <defs>
+                {CHART_COLORS.map((color, i) => (
+                  <radialGradient key={i} id={`pieGrad-${i}`} cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stopColor={color} stopOpacity={1} />
+                    <stop offset="100%" stopColor={color} stopOpacity={0.65} />
+                  </radialGradient>
+                ))}
+              </defs>
+              <Pie
+                data={chartData}
+                dataKey={yKey}
+                nameKey={xKey}
+                cx="50%"
+                cy="50%"
+                outerRadius={115}
+                innerRadius={45}
+                paddingAngle={2}
+                label={({ percent }) => `${(percent * 100).toFixed(1)}%`}
+                labelLine={{ stroke: '#475569', strokeWidth: 1 }}
+              >
+                {chartData.map((_, i) => (
+                  <Cell key={`cell-${i}`} fill={`url(#pieGrad-${i % CHART_COLORS.length})`} stroke="rgba(0,0,0,0.2)" strokeWidth={1} />
+                ))}
+              </Pie>
+              <Tooltip formatter={formatValue} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} />
+              <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: '#94a3b8' }} />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
   }
@@ -78,16 +102,24 @@ function ChartRenderer({ data, chartConfig }) {
   if (type === 'line') {
     return (
       <div className="chart-container">
-        {title && <div className="chart-title">{title}</div>}
-        <ResponsiveContainer style={containerStyle}>
-          <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-            <XAxis dataKey={xKey} tick={tickStyle} angle={-35} textAnchor="end" interval={0} />
-            <YAxis tick={tickStyle} tickFormatter={formatValue} />
-            <Tooltip formatter={formatValue} contentStyle={tooltipStyle} />
-            <Line type="monotone" dataKey={yKey} stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} />
-          </LineChart>
-        </ResponsiveContainer>
+        <ChartHeader />
+        <div className="chart-body">
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={chartData} margin={{ top: 10, right: 24, left: 10, bottom: 30 }}>
+              <defs>
+                <linearGradient id="lineAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#6366f1" stopOpacity={0.25} />
+                  <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+              <XAxis dataKey={xKey} tick={tickStyle} interval={0} axisLine={false} tickLine={false} />
+              <YAxis tick={tickStyle} tickFormatter={formatValue} axisLine={false} tickLine={false} width={55} />
+              <Tooltip formatter={formatValue} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ stroke: 'rgba(99,102,241,0.3)', strokeWidth: 1 }} />
+              <Line type="monotone" dataKey={yKey} stroke="#6366f1" strokeWidth={2.5} dot={{ r: 4, fill: '#6366f1', stroke: '#0f172a', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#818cf8', stroke: '#0f172a', strokeWidth: 2 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     );
   }
@@ -95,20 +127,30 @@ function ChartRenderer({ data, chartConfig }) {
   // Default: bar chart
   return (
     <div className="chart-container">
-      {title && <div className="chart-title">{title}</div>}
-      <ResponsiveContainer style={containerStyle}>
-        <BarChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 60 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-          <XAxis dataKey={xKey} tick={tickStyle} angle={-35} textAnchor="end" interval={0} />
-          <YAxis tick={tickStyle} tickFormatter={formatValue} />
-          <Tooltip formatter={formatValue} contentStyle={tooltipStyle} />
-          <Bar dataKey={yKey} radius={[4, 4, 0, 0]}>
-            {chartData.map((_, i) => (
-              <Cell key={`bar-${i}`} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <ChartHeader />
+      <div className="chart-body">
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={chartData} margin={{ top: 10, right: 24, left: 10, bottom: 30 }} barCategoryGap="30%">
+            <defs>
+              {CHART_COLORS.map((color, i) => (
+                <linearGradient key={i} id={`barGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={color} stopOpacity={0.95} />
+                  <stop offset="100%" stopColor={color} stopOpacity={0.4} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+            <XAxis dataKey={xKey} tick={tickStyle} interval={0} axisLine={false} tickLine={false} />
+            <YAxis tick={tickStyle} tickFormatter={formatValue} axisLine={false} tickLine={false} width={55} />
+            <Tooltip formatter={formatValue} contentStyle={tooltipStyle} labelStyle={tooltipLabelStyle} itemStyle={tooltipItemStyle} cursor={{ fill: 'rgba(99,102,241,0.07)' }} />
+            <Bar dataKey={yKey} radius={[6, 6, 0, 0]}>
+              {chartData.map((_, i) => (
+                <Cell key={`bar-${i}`} fill={`url(#barGrad-${i % CHART_COLORS.length})`} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
@@ -260,7 +302,7 @@ function App() {
         finalAnswer: item.finalAnswer,
         queryResult: item.results,
         generatedTasks: item.generatedTasks,
-        kpiAnalysis: item.kpiAnalysis, // Include KPI/RootCause if they were saved (though history.results usually just has data)
+        kpiAnalysis: item.kpiAnalysis,
         rootCauseAnalysis: item.rootCauseAnalysis,
         sqlQuery: item.sqlQuery
       }

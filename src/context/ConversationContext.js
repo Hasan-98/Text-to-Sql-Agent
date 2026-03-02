@@ -24,17 +24,18 @@ export class ConversationContext {
         this.load();
     }
 
-    addInteraction(userQuery, analyzedQuery, sqlQuery, results, finalAnswer, generatedTasks = null, kpiAnalysis = null, rootCauseAnalysis = null) {
+    addInteraction(userQuery, analyzedQuery, sqlQuery, results, finalAnswer, generatedTasks = null, kpiAnalysis = null, rootCauseAnalysis = null, chartConfig = null) {
         this.history.push({
             timestamp: new Date().toISOString(),
             userQuery,
             analyzedQuery,
             sqlQuery,
-            results: results?.slice(0, 5), // Store only first 5 for context
+            results: results?.slice(0, 50), // Store up to 50 rows for chart rendering
             finalAnswer,
             generatedTasks,
             kpiAnalysis,
-            rootCauseAnalysis
+            rootCauseAnalysis,
+            chartConfig
         });
 
         this.updateEntities(analyzedQuery, results);
@@ -99,37 +100,40 @@ export class ConversationContext {
 
     getContextForPrompt() {
         if (this.history.length === 0) {
-            return "No previous conversation. This is a new query.";
+            return "New conversation, no previous context.";
         }
 
-        let context = `
-=== CONVERSATION HISTORY ===
-Number of previous queries: ${this.history.length}
+        // Build compact log of last 10 turns so LLM can recall older questions
+        const recentTurns = this.history.slice(-10);
+        const totalTurns = this.history.length;
+        const startIndex = totalTurns - recentTurns.length + 1;
 
-STORES CURRENTLY BEING DISCUSSED:
-${this.entities.recentStores.length > 0
-                ? this.entities.recentStores.slice(0, 10).map(s => `- ${s.name}`).join('\n')
-                : 'None specified'}
+        const turnLog = recentTurns.map((turn, i) => {
+            const turnNum = startIndex + i;
+            const stores = turn.results?.slice(0, 5)
+                .map(r => r.store_name).filter(Boolean).join(', ') || 'N/A';
+            const filters = turn.analyzedQuery?.filters &&
+                Object.keys(turn.analyzedQuery.filters).length > 0
+                ? JSON.stringify(turn.analyzedQuery.filters)
+                : 'none';
+            return `[Turn ${turnNum}] Q: "${turn.userQuery}"
+  Intent: ${turn.analyzedQuery?.intent || 'N/A'}
+  Metric: ${turn.analyzedQuery?.metric || 'N/A'} | Filters: ${filters}
+  Top stores: ${stores}`;
+        }).join('\n\n');
 
-METRICS DISCUSSED SO FAR:
-${this.entities.discussedMetrics.length > 0
-                ? this.entities.discussedMetrics.join(', ')
-                : 'None'}
+        return `=== CONVERSATION HISTORY (${totalTurns} total turns, showing last ${recentTurns.length}) ===
+${turnLog}
 
-LAST QUERY: "${this.lastQuery}"
+CURRENT CONTEXT:
+Last query: "${this.lastQuery}"
+Recent stores (from last result): ${this.entities.recentStores.slice(0, 10).map(s => s.name).join(', ') || 'none'}
+All metrics discussed: ${this.entities.discussedMetrics.join(', ') || 'none'}
 
-LAST SQL USED:
-${this.lastSQL || 'None'}
-
-LAST RESULTS (first 3 rows):
-${this.lastResults ? JSON.stringify(this.lastResults.slice(0, 3), null, 2) : 'None'}
-
-RECENT TASK DECISIONS:
-${this.entities.decisions && this.entities.decisions.length > 0
-                ? this.entities.decisions.map(d => `- [${d.status.toUpperCase()}] ${d.title}`).join('\n')
-                : 'No decisions made yet.'}
-`;
-        return context;
+FOLLOW-UP RULES:
+- Follow-up = user says "they/those/these/their stores" or "also show X" → useStoresFromLastQuery=true, isFollowUp=true
+- NOT follow-up = user names new filters, stores, or a completely different topic
+- If user references a past turn (e.g. "like before", "from question 1", "the stores we looked at earlier"), look at the turn log above and use those stores/filters`;
     }
 
     hasContext() {
@@ -218,7 +222,8 @@ ${this.entities.decisions && this.entities.decisions.length > 0
                 analyzedQuery: turn.analyzedQuery,
                 generatedTasks: turn.generatedTasks,
                 kpiAnalysis: turn.kpiAnalysis,
-                rootCauseAnalysis: turn.rootCauseAnalysis
+                rootCauseAnalysis: turn.rootCauseAnalysis,
+                chartConfig: turn.chartConfig || null
             });
         });
         return messages;
@@ -226,4 +231,3 @@ ${this.entities.decisions && this.entities.decisions.length > 0
 }
 
 export const conversationContext = new ConversationContext();
-

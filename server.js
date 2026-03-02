@@ -97,7 +97,8 @@ app.post("/api/chat", async (req, res) => {
             result.finalAnswer,
             result.generatedTasks,
             result.kpiAnalysis,
-            result.rootCauseAnalysis
+            result.rootCauseAnalysis,
+            result.chartConfig || null
         );
 
         // If tasks were generated, save them to tasks.json with Dashboard metadata
